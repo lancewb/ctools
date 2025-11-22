@@ -12,7 +12,7 @@
                 density="compact"
                 hide-details
                 class="mr-4"
-                prefix="Subnet:"
+                prefix=""
                 style="max-width: 300px"
                 @keyup.enter="startPing"
             ></v-text-field>
@@ -22,12 +22,14 @@
                 prepend-icon="mdi-play"
                 @click="startPing"
                 :loading="loading"
+                :disabled="loading"
                 height="40"
+                class="mr-6"
             >
               开始扫描
             </v-btn>
 
-            <v-spacer></v-spacer>
+<!--            <v-spacer></v-spacer>-->
 
             <div class="d-flex align-center gap-4 text-caption">
               <div class="d-flex align-center mr-3">
@@ -63,7 +65,7 @@
                   v-for="item in displayList"
                   :key="item.id"
                   :class="['ping-box', getStatusClass(item.latency)]"
-                  v-tooltip:top="`IP: ${currentSubnet}.${item.id}<br>延迟: ${item.latency >= 5000 ? '超时' : item.latency + 'ms'}`"
+                  v-tooltip:top="`IP: ${currentSubnet}.${item.id} 延迟: ${item.latency >= 5000 ? '超时' : item.latency + 'ms'}`"
               >
                 {{ item.id }}
               </div>
@@ -93,9 +95,10 @@
                 v-for="history in historyList"
                 :key="history"
                 :title="history"
-                :subtitle="`扫描 ${history}.1-254`"
+                :subtitle="`点击扫描`"
                 @click="reuseHistory(history)"
-                link
+                :link="!loading"
+                :disabled="loading"
             >
               <template v-slot:prepend>
                 <v-icon icon="mdi-history" size="small" color="grey"></v-icon>
