@@ -1,0 +1,52 @@
+# --- Wails 项目特有 ---
+# Wails 构建输出的二进制文件目录
+build/bin/
+# Wails 前端构建产物 (Vue/Vite 打包后的文件)
+frontend/dist/
+# Wails 自动生成的绑定文件 (根据个人喜好，有时也可以保留，但通常构建时会生成)
+# wailsjs/
+
+# --- 前端 (Vue/Vite/Node) ---
+# 巨大的依赖包目录 (绝对不要上传)
+node_modules/
+frontend/node_modules/
+# npm 调试日志
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+# 本地环境变量文件 (包含敏感信息)
+.env.local
+.env.*.local
+
+# --- Go 语言 ---
+# 编译产生的临时文件或二进制
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+# 测试生成的二进制
+*.test
+# Go 工作区文件 (如果是本地开发多模块)
+go.work
+
+# --- IDE 和 编辑器 (可选，建议忽略) ---
+# VS Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+*.code-workspace
+# JetBrains (GoLand/WebStorm)
+.idea/
+
+# --- 操作系统生成的文件 ---
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
