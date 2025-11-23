@@ -1,0 +1,67 @@
+name: Daily Wails Build
+
+# 触发条件
+on:
+  schedule:
+    # 每天北京时间凌晨 02:00 运行
+    # GitHub Actions 使用 UTC 时间，北京时间是 UTC+8
+    # 所以 UTC 时间是前一天的 18:00 (18 + 8 = 26 -> 次日 02:00)
+    - cron: '0 18 * * *'
+  # 允许你在 GitHub 网页上手动点击按钮触发（方便测试）
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      # 矩阵策略：同时在三个系统上运行编译任务
+      matrix:
+        os: [windows-latest]
+        #os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # 1. 拉取代码
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. 安装 Go 环境
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25' # 建议改为你本地开发的 Go 版本
+          check-latest: true
+
+      # 3. 安装 Node.js 环境 (Wails 前端构建需要)
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # 建议改为你本地开发的 Node 版本
+
+      # 4. 安装 Wails 命令行工具
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      # # 5. [Linux 特有] 安装 Linux 系统依赖库
+      # - name: Install Linux Dependencies
+      #   if: runner.os == 'Linux'
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+
+      # 6. 执行编译
+      # -clean 确保每次都是全新编译
+      # 也可以根据需要加上 -upx 压缩体积（需要额外配置 upx）
+      - name: Build Wails App
+        run: wails build -clean
+
+      # 7. 上传成果物 (Artifacts)
+      # 编译完成后，可以在 GitHub 的 Actions 页面下载这些文件
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          # 构件名称，加上系统后缀以示区分，例如: wails-app-windows-latest
+          name: wails-app-${{ matrix.os }}
+          # Wails 默认输出目录在 build/bin
+          path: build/bin/*
+          # 保留 5 天
+          retention-days: 5
