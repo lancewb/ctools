@@ -11,9 +11,12 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 )
 
+// assets holds the embedded frontend assets.
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// main is the application entry point.
+// It initializes services, creates the application instance, and starts the Wails runtime.
 func main() {
 	// Create an instance of the app structure
 	netService := network.NewNetworkService()

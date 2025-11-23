@@ -12,6 +12,10 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
+// RunSymmetric performs a symmetric cryptographic operation.
+//
+// req: The SymmetricRequest containing algorithm, mode, key, IV, and input data.
+// Returns an OperationResult with the output or an error.
 func (c *CryptoService) RunSymmetric(req SymmetricRequest) (OperationResult, error) {
 	algo := strings.ToLower(req.Algorithm)
 	op := strings.ToLower(req.Operation)

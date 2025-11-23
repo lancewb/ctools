@@ -151,27 +151,43 @@
 </template>
 
 <script setup>
+/**
+ * TextFormat Component
+ *
+ * Provides tools for text manipulation:
+ * - Inserting separators (e.g. adding spaces every 2 chars for hex)
+ * - Deleting separators (e.g. removing spaces)
+ * - Auto-detecting and decoding Base64 input
+ * - Base64 encoding output
+ */
+
 import { ref, computed } from 'vue'
 
-// 状态定义
+// --- State ---
 const inputText = ref('')
 const outputText = ref('')
 const outputBase64 = ref('')
 
-// 参数控制
-const mode = ref('insert') // insert | delete
+// Parameters
+const mode = ref('insert') // 'insert' | 'delete'
 const interval = ref(0)
 const separator = ref(' ')
 const isBase64Detected = ref(false)
 
 const showSnackbar = ref(false)
 
-// 简单的输入监听，用于重置状态
+// --- Methods ---
+
+/**
+ * handleInput monitors typing to auto-detect Base64 content.
+ */
 const handleInput = () => {
-  // 实时检测是否像 Base64，如果是，显示个小徽章提示用户
   const raw = inputText.value.trim()
-  // 必须是4的倍数，且包含非Hex字符(G-Z, g-z, +, /) 或者以 = 结尾，才判定为Base64
-  // 避免输入 "3031" 这种 Hex 串被误判为 Base64
+
+  // Heuristic check for Base64:
+  // 1. Length is multiple of 4
+  // 2. Contains only Base64 chars
+  // 3. Contains non-hex chars (to differentiate from hex strings) or ends with '='
   const base64Pattern = /^[A-Za-z0-9+/]+={0,2}$/
   const hasNonHex = /[^0-9A-Fa-f]/.test(raw)
 
@@ -182,18 +198,18 @@ const handleInput = () => {
   }
 }
 
-// 核心处理逻辑
+/**
+ * handleProcess executes the formatting logic based on selected mode.
+ */
 const handleProcess = () => {
   if (!inputText.value) return
   let b64 = false
   let source = inputText.value.trim()
 
-  // 1. 自动 Base64 解码逻辑
-  // 如果通过了我们的“Base64特征”检测，先尝试解码
+  // 1. Auto-decode Base64 if detected
   if (isBase64Detected.value) {
     try {
       const decoded = atob(source)
-      // 解码成功，将 source 替换为解码后的内容
       source = decoded
       b64 = true
     } catch (e) {
@@ -205,15 +221,12 @@ const handleProcess = () => {
 
   try {
     if (mode.value === 'insert') {
-      // 模式 1: 插入字符
       const step = interval.value
       const char = separator.value
 
-      // 修改：如果间隔 <= 0，直接原样输出，不进行插入
       if (step <= 0) {
         result = source
       } else {
-        // 使用正则每隔 step 个字符切分
         const regex = new RegExp(`.{1,${step}}`, 'g')
         const matches = source.match(regex)
         if (matches) {
@@ -224,43 +237,44 @@ const handleProcess = () => {
       }
 
     } else if (mode.value === 'delete') {
-      // 模式 2: 删除字符
       const char = separator.value
       if (char) {
-        // 全局替换指定字符为空字符串
-        // 使用 split+join 替换所有出现的字符
         result = source.split(char).join('')
       } else {
         result = source
       }
     }
 
-    // 设置输出
     outputText.value = result
 
-    // 计算结果的 Base64
+    // 2. Calculate Base64 of result
+    // If input was Base64, outputBase64 is the re-encoded input (normalized)
     if(!b64) {
       outputBase64.value = utf8_to_b64(result)
-    }else {
+    } else {
       outputBase64.value = utf8_to_b64(inputText.value.trim())
     }
 
   } catch (e) {
     console.error(e)
-    outputText.value = "处理出错: " + e.message
+    outputText.value = "Processing Error: " + e.message
   }
 }
 
-// 解决中文 Base64 编码问题的辅助函数
+/**
+ * utf8_to_b64 encodes string to Base64 handling UTF-8 characters safely.
+ */
 const utf8_to_b64 = (str) => {
   try {
-    // 简单的转码处理，防止中文报错
     return window.btoa(unescape(encodeURIComponent(str)))
   } catch (e) {
-    return "编码失败"
+    return "Encoding Failed"
   }
 }
 
+/**
+ * copyToClipboard copies text to clipboard.
+ */
 const copyToClipboard = (text) => {
   if (text) {
     navigator.clipboard.writeText(text)

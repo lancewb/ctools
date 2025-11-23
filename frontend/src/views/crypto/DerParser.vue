@@ -35,15 +35,28 @@
 </template>
 
 <script setup>
+/**
+ * DerParser Component
+ *
+ * Provides a UI for parsing and visualizing ASN.1 DER structures.
+ * Supports Hex and Base64 input formats.
+ */
+
 import { ref } from 'vue'
 import { ParseDER } from '../../../wailsjs/go/crypto/CryptoService'
 
+// --- State ---
 const mode = ref('hex')
 const data = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
 const treeItems = ref([])
 
+// --- Methods ---
+
+/**
+ * parse decodes the input string as DER and builds a tree structure.
+ */
 const parse = async () => {
   if (!data.value) {
     errorMsg.value = '请输入数据'
@@ -62,6 +75,12 @@ const parse = async () => {
 }
 
 let nodeCounter = 0
+
+/**
+ * buildNode recursively transforms backend DER nodes into treeview compatible objects.
+ *
+ * @param {Object} node - The DER node from the backend.
+ */
 const buildNode = (node) => {
   const id = ++nodeCounter
   return {

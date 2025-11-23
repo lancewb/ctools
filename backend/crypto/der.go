@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+// ParseDER parses ASN.1 DER encoded data and returns its structure.
+//
+// req: The DerParseRequest containing hex or base64 data.
+// Returns a DerParseResult with the parsed tree of nodes, or an error.
 func (c *CryptoService) ParseDER(req DerParseRequest) (DerParseResult, error) {
 	var data []byte
 	var err error

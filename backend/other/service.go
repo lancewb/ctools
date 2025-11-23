@@ -16,6 +16,7 @@ import (
 	"gitee.com/Trisia/gotlcp/tlcp"
 )
 
+// OtherService handles miscellaneous services like SOCKS5 proxy and GMSSL testing.
 type OtherService struct {
 	ctx    context.Context
 	crypto *crypto.CryptoService
@@ -25,23 +26,27 @@ type OtherService struct {
 	gmServer    *gmsslServer
 }
 
+// NewOtherService initializes a new OtherService instance.
 func NewOtherService(cryptoSvc *crypto.CryptoService) *OtherService {
 	return &OtherService{
 		crypto: cryptoSvc,
 	}
 }
 
+// SetContext sets the application context.
 func (s *OtherService) SetContext(ctx context.Context) {
 	s.ctx = ctx
 }
 
 // SOCKS5
 
+// Socks5Config defines the configuration for the SOCKS5 proxy server.
 type Socks5Config struct {
 	ListenIP string `json:"listenIp"`
 	Port     int    `json:"port"`
 }
 
+// Socks5Status contains the real-time status of the SOCKS5 server.
 type Socks5Status struct {
 	Running            bool   `json:"running"`
 	Address            string `json:"address"`
@@ -58,6 +63,10 @@ type socks5Server struct {
 	stopChan   chan struct{}
 }
 
+// StartSocks5Proxy starts a SOCKS5 proxy server with the given configuration.
+//
+// cfg: The Socks5Config containing listen IP and port.
+// Returns a Socks5Status indicating the server state or an error.
 func (s *OtherService) StartSocks5Proxy(cfg Socks5Config) (Socks5Status, error) {
 	if cfg.Port == 0 {
 		return Socks5Status{}, errors.New("port is required")
@@ -93,6 +102,9 @@ func (s *OtherService) StartSocks5Proxy(cfg Socks5Config) (Socks5Status, error) 
 	return status, nil
 }
 
+// StopSocks5Proxy stops the running SOCKS5 proxy server.
+//
+// Returns the updated Socks5Status.
 func (s *OtherService) StopSocks5Proxy() (Socks5Status, error) {
 	s.mu.Lock()
 	if s.socksServer != nil {
@@ -104,6 +116,9 @@ func (s *OtherService) StopSocks5Proxy() (Socks5Status, error) {
 	return status, nil
 }
 
+// Socks5Status retrieves the current status of the SOCKS5 proxy server.
+//
+// Returns a Socks5Status struct.
 func (s *OtherService) Socks5Status() Socks5Status {
 	s.mu.Lock()
 	status := s.currentSocksStatusLocked()
@@ -217,6 +232,7 @@ func (s *socks5Server) Close() error {
 
 // GM SSL
 
+// GMSSLServerConfig defines the configuration for a GM/TLCP server.
 type GMSSLServerConfig struct {
 	ListenIP   string `json:"listenIp"`
 	Port       int    `json:"port"`
@@ -227,6 +243,7 @@ type GMSSLServerConfig struct {
 	ClientAuth bool   `json:"clientAuth"`
 }
 
+// GMSSLServerStatus contains the real-time status of the GM/TLCP server.
 type GMSSLServerStatus struct {
 	Running   bool   `json:"running"`
 	Address   string `json:"address"`
@@ -242,6 +259,7 @@ type gmsslServer struct {
 	stop     chan struct{}
 }
 
+// GMSSLClientConfig defines the configuration for a GM/TLCP client connection test.
 type GMSSLClientConfig struct {
 	ServerIP         string `json:"serverIp"`
 	Port             int    `json:"port"`
@@ -253,12 +271,17 @@ type GMSSLClientConfig struct {
 	SkipVerify       bool   `json:"skipVerify"`
 }
 
+// GMSSLClientResult contains the result of a GM/TLCP client connection attempt.
 type GMSSLClientResult struct {
 	Success   bool   `json:"success"`
 	Message   string `json:"message"`
 	Timestamp string `json:"timestamp"`
 }
 
+// StartGMSSLServer starts a GM/TLCP server with the given configuration.
+//
+// cfg: The GMSSLServerConfig containing keys, certs, and listening address.
+// Returns a GMSSLServerStatus or an error.
 func (s *OtherService) StartGMSSLServer(cfg GMSSLServerConfig) (GMSSLServerStatus, error) {
 	if cfg.ListenIP == "" || cfg.Port == 0 {
 		return GMSSLServerStatus{}, errors.New("listen IP and port are required")
@@ -308,6 +331,9 @@ func (s *OtherService) StartGMSSLServer(cfg GMSSLServerConfig) (GMSSLServerStatu
 	return status, nil
 }
 
+// StopGMSSLServer stops the running GM/TLCP server.
+//
+// Returns the updated GMSSLServerStatus.
 func (s *OtherService) StopGMSSLServer() (GMSSLServerStatus, error) {
 	s.mu.Lock()
 	if s.gmServer != nil {
@@ -319,6 +345,9 @@ func (s *OtherService) StopGMSSLServer() (GMSSLServerStatus, error) {
 	return status, nil
 }
 
+// GMSSLServerStatus retrieves the current status of the GM/TLCP server.
+//
+// Returns a GMSSLServerStatus struct.
 func (s *OtherService) GMSSLServerStatus() GMSSLServerStatus {
 	s.mu.Lock()
 	status := s.currentGMStatusLocked()
@@ -367,6 +396,10 @@ func (s *gmsslServer) Close() error {
 	return nil
 }
 
+// RunGMSSLClientTest attempts to connect to a GM/TLCP server.
+//
+// cfg: The GMSSLClientConfig containing server details and client auth info.
+// Returns a GMSSLClientResult with the connection result.
 func (s *OtherService) RunGMSSLClientTest(cfg GMSSLClientConfig) (GMSSLClientResult, error) {
 	if cfg.ServerIP == "" || cfg.Port == 0 {
 		return GMSSLClientResult{}, errors.New("server IP and port required")

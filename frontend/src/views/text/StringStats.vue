@@ -69,39 +69,55 @@
 </template>
 
 <script setup>
+/**
+ * StringStats Component
+ *
+ * Analyzes input text and provides statistics:
+ * - Total length
+ * - English characters
+ * - Chinese characters
+ * - Numbers
+ * - Spaces
+ * - Line count
+ * - Estimated Hex byte count
+ */
+
 import { ref, computed } from 'vue'
 
+// --- State ---
 const text = ref('')
 
-// 核心统计逻辑
+// --- Computed ---
+
+/**
+ * stats computes various metrics about the input text.
+ */
 const stats = computed(() => {
   const content = text.value || ''
 
-  // 1. 英文 (a-z, A-Z)
+  // 1. English (a-z, A-Z)
   const enMatch = content.match(/[a-zA-Z]/g)
   const enCount = enMatch ? enMatch.length : 0
 
-  // 2. 中文 (基本汉字范围)
+  // 2. Chinese (Basic range)
   const cnMatch = content.match(/[\u4e00-\u9fa5]/g)
   const cnCount = cnMatch ? cnMatch.length : 0
 
-  // 3. 数字 (0-9)
+  // 3. Numbers (0-9)
   const numMatch = content.match(/[0-9]/g)
   const numCount = numMatch ? numMatch.length : 0
 
-  // 4. 空格 (计算普通空格)
+  // 4. Spaces
   const spaceMatch = content.match(/ /g)
   const spaceCount = spaceMatch ? spaceMatch.length : 0
 
-  // 5. 行数
-  // 如果为空则0行，否则按换行符分割
+  // 5. Line Count
   const lineCount = content ? content.split(/\r\n|\r|\n/).length : 0
 
-  // 6. Hex 字节 (字母 + 数字) * 2
-  // 严格按照您的公式实现
+  // 6. Hex Bytes Estimation (assuming (En + Num) / 2)
   const hexCount = (enCount + numCount) / 2
 
-  // 7. 总字符数 (length)
+  // 7. Total Length
   const totalCount = content.length
 
   return {
@@ -115,7 +131,7 @@ const stats = computed(() => {
   }
 })
 
-// 用于页面渲染的列表配置
+// List configuration for UI rendering
 const statsList = computed(() => [
   { label: '总字符数', value: stats.value.totalCount, icon: 'mdi-sigma', color: 'blue-grey' },
   { label: '英文字符', value: stats.value.enCount, icon: 'mdi-alphabet-latin', color: 'indigo' },
@@ -124,7 +140,6 @@ const statsList = computed(() => [
   { label: '空格', value: stats.value.spaceCount, icon: 'mdi-keyboard-space', color: 'orange' },
   { label: '总行数', value: stats.value.lineCount, icon: 'mdi-format-list-numbered', color: 'teal' },
   { label: 'Hex 字节', value: stats.value.hexCount, icon: 'mdi-code-braces', color: 'purple' },
-  // 注：Hex 字节按 (字母+数字)*2 计算
 ])
 </script>
 

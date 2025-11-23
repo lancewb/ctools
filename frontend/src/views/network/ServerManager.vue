@@ -197,9 +197,17 @@
 </template>
 
 <script setup>
+/**
+ * ServerManager Component
+ *
+ * Allows users to manage a list of Linux servers and monitor their status via SSH.
+ * Displays CPU, Memory, Disk usage, and PCI devices (e.g., Crypto cards).
+ */
+
 import { ref, reactive, onMounted } from 'vue'
 import { GetServerList, SaveServer, DeleteServer, CheckServerStatus } from '../../../wailsjs/go/network/NetworkService.js'
 
+// --- State ---
 const serverList = ref([])
 const serverStatus = reactive({})
 const loadingState = reactive({})
@@ -208,10 +216,9 @@ const dialog = ref(false)
 const editingId = ref('')
 const keyFile = ref(null)
 
-// 修改点 3: 添加一个专门用于引用的 ref，防止和数据冲突
+// Reference to the form element
 const formRef = ref(null)
 
-// 修改点 4: 将原来的 form 改名为 formData
 const formData = reactive({
   id: '',
   name: '',
@@ -223,15 +230,20 @@ const formData = reactive({
   keyPath: ''
 })
 
-// --- CRUD ---
+// --- Methods ---
 
+/**
+ * loadList fetches the saved server configurations.
+ */
 const loadList = async () => {
   serverList.value = await GetServerList()
 }
 
+/**
+ * openAddDialog resets the form and opens the dialog to add a new server.
+ */
 const openAddDialog = () => {
   editingId.value = ''
-  // 修改点 5: 更新 formData
   formData.id = ''
   formData.name = ''
   formData.host = ''
@@ -244,21 +256,30 @@ const openAddDialog = () => {
   dialog.value = true
 }
 
+/**
+ * editServer populates the form with existing server details for editing.
+ *
+ * @param {Object} server - The server object to edit.
+ */
 const editServer = (server) => {
   editingId.value = server.id
-  // 修改点 6: 更新 formData
   Object.assign(formData, server)
   keyFile.value = null
   dialog.value = true
 }
 
+/**
+ * handleFileSelect handles private key file selection.
+ * Note: Web file input path access is restricted. In a real app, use Wails runtime dialog.
+ */
 const handleFileSelect = (files) => {
-  // 实际应使用 runtime.OpenFileDialog
-  // formData.keyPath = files[0].path (如果支持的话)
+  // Placeholder: Real implementation requires Wails OpenFileDialog to get absolute path
 }
 
+/**
+ * saveServer persists the server configuration to the backend.
+ */
 const saveServer = async () => {
-  // 修改点 7: 使用 formData
   if (!formData.host || !formData.user) return
 
   const payload = JSON.parse(JSON.stringify(formData))
@@ -266,6 +287,11 @@ const saveServer = async () => {
   dialog.value = false
 }
 
+/**
+ * deleteServer removes a server configuration.
+ *
+ * @param {string} id - The ID of the server to delete.
+ */
 const deleteServer = async (id) => {
   if (confirm('确定移除该服务器配置吗？')) {
     serverList.value = await DeleteServer(id)
@@ -275,6 +301,11 @@ const deleteServer = async (id) => {
 
 // --- SSH Actions ---
 
+/**
+ * refreshServer initiates an SSH connection to fetch current server status.
+ *
+ * @param {Object} server - The server config object.
+ */
 const refreshServer = async (server) => {
   loadingState[server.id] = true
   try {
@@ -291,10 +322,10 @@ const refreshServer = async (server) => {
 }
 
 onMounted(async () => {
-  // 1. 先加载列表
+  // 1. Load saved servers
   await loadList()
 
-  // 2. 列表加载完成后，遍历所有服务器，自动触发刷新
+  // 2. Auto-refresh status for all servers
   if (serverList.value && serverList.value.length > 0) {
     serverList.value.forEach(server => {
       refreshServer(server)

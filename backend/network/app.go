@@ -2,16 +2,17 @@ package network
 
 import "context"
 
+// NetworkService handles network-related operations such as pinging, HTTP requests, and SSH connections.
 type NetworkService struct {
 	ctx context.Context
 }
 
-// NewNetworkService 构造函数
+// NewNetworkService initializes a new NetworkService instance.
 func NewNetworkService() *NetworkService {
 	return &NetworkService{}
 }
 
-// SetContext 供 App 在启动时注入 Context
+// SetContext sets the application context.
 func (n *NetworkService) SetContext(ctx context.Context) {
 	n.ctx = ctx
 }

@@ -47,9 +47,16 @@
 </template>
 
 <script setup>
+/**
+ * SocksProxy Component
+ *
+ * Provides a UI for managing a local SOCKS5 proxy server.
+ */
+
 import { ref, reactive, onMounted } from 'vue'
 import { StartSocks5Proxy, StopSocks5Proxy, Socks5Status } from '../../../wailsjs/go/other/OtherService'
 
+// --- State ---
 const form = reactive({
   listenIp: '0.0.0.0',
   port: 1080
@@ -58,6 +65,11 @@ const form = reactive({
 const status = ref(null)
 const loading = ref(false)
 
+// --- Methods ---
+
+/**
+ * refresh fetches the current status of the SOCKS5 proxy.
+ */
 const refresh = async () => {
   try {
     status.value = await Socks5Status()
@@ -66,6 +78,9 @@ const refresh = async () => {
   }
 }
 
+/**
+ * start initiates the SOCKS5 proxy server.
+ */
 const start = async () => {
   loading.value = true
   try {
@@ -84,6 +99,9 @@ const start = async () => {
   }
 }
 
+/**
+ * stop halts the SOCKS5 proxy server.
+ */
 const stop = async () => {
   loading.value = true
   try {

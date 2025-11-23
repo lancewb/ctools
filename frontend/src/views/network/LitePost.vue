@@ -302,13 +302,19 @@
 </template>
 
 <script setup>
-// ... script 部分与之前基本一致，只补充 commonHeaderKeys ...
+/**
+ * LitePost Component
+ *
+ * A lightweight HTTP/WebSocket client similar to Postman.
+ * Supports standard HTTP methods, Headers, Params, Body (JSON/Raw), and WebSocket testing.
+ * Also supports saving requests to a collection.
+ */
 
 import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import KeyValueEditor from '../../components/KeyValueEditor.vue'
 import { SendHttpRequest, GetReqCollections, SaveReqCollection, DeleteReqCollection } from '../../../wailsjs/go/network/NetworkService.js'
 
-// 定义常用 Header，传给 KeyValueEditor
+// --- Constants & Options ---
 const commonHeaderKeys = [
   'Authorization',
   'Content-Type',
@@ -321,10 +327,6 @@ const commonHeaderKeys = [
   'Referer'
 ]
 
-// ... 其余 Script 逻辑 (watchers, methods) 与上一次回答一致，无需改动 ...
-// ... 请确保保留上个回答中关于 bodyKvList, wsMsgType 等的 watch 逻辑 ...
-// ... 这里为了节省篇幅不再重复粘贴全部 script，如果您需要请告诉我 ...
-
 const tlsOptions = [
   { title: 'Auto', value: '' },
   { title: 'TLS 1.1', value: '1.1' },
@@ -333,6 +335,7 @@ const tlsOptions = [
   { title: '国密 TLCP', value: 'tlcp' },
 ]
 
+// --- State ---
 const collections = ref([])
 const loading = ref(false)
 const saveDialog = ref(false)
@@ -367,7 +370,7 @@ const wsKvList = ref([{ key: '', value: '', active: true }])
 const wsRawMsg = ref('')
 const response = ref(null)
 
-// Watchers
+// --- Watchers ---
 watch(bodyType, (newType) => {
   if (newType === 'raw') {
     const obj = kvListToObj(bodyKvList.value)
@@ -400,12 +403,15 @@ watch(wsMsgType, (newType) => {
   }
 })
 
+// --- Computed ---
 const sendButtonText = computed(() => {
   if (currentReq.protocol === 'ws') {
     return wsConnected.value ? '断开' : '连接'
   }
   return '发送'
 })
+
+// --- Methods ---
 
 const loadCollections = async () => {
   collections.value = await GetReqCollections()

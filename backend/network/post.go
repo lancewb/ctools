@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// RequestOption 前端传来的请求参数
+// RequestOption defines the parameters for an HTTP/HTTPS request.
 type RequestOption struct {
 	ID         string            `json:"id"`
 	Method     string            `json:"method"`
@@ -25,47 +25,51 @@ type RequestOption struct {
 	Body       string            `json:"body"`       // JSON string
 	Protocol   string            `json:"protocol"`   // http, https
 	TlsVersion string            `json:"tlsVersion"` // "", "1.1", "1.2", "1.3", "tlcp"
-	Timeout    int               `json:"timeout"`    // 秒
+	Timeout    int               `json:"timeout"`    // in seconds
 }
 
-// ResponseResult 返回给前端的结果
+// ResponseResult contains the response details of an HTTP request.
 type ResponseResult struct {
 	StatusCode int               `json:"statusCode"`
 	Headers    map[string]string `json:"headers"`
 	Body       string            `json:"body"`
-	TimeCost   int64             `json:"timeCost"` // 毫秒
+	TimeCost   int64             `json:"timeCost"` // in milliseconds
 	Error      string            `json:"error"`
 }
 
-// CollectionItem 收藏夹项
+// CollectionItem represents a saved HTTP request configuration.
 type CollectionItem struct {
 	ID      string        `json:"id"`
 	Name    string        `json:"name"`
 	Request RequestOption `json:"request"`
 }
 
-// SendHttpRequest 发送 HTTP 请求
+// SendHttpRequest sends an HTTP or HTTPS request based on the provided options.
+// It supports standard TLS and Chinese SM2/TLCP protocols.
+//
+// opt: The RequestOption struct containing URL, method, headers, etc.
+// Returns a ResponseResult with the status, body, and timing information.
 func (n *NetworkService) SendHttpRequest(opt RequestOption) ResponseResult {
 	start := time.Now()
 
-	// 1. 构造 Body (保持不变)
+	// 1. Construct Body
 	var bodyReader io.Reader
 	if opt.Body != "" {
 		bodyReader = bytes.NewBufferString(opt.Body)
 	}
 
-	// 2. 创建 Request (保持不变)
+	// 2. Create Request
 	req, err := http.NewRequest(opt.Method, opt.URL, bodyReader)
 	if err != nil {
-		return ResponseResult{Error: "创建请求失败: " + err.Error()}
+		return ResponseResult{Error: "Failed to create request: " + err.Error()}
 	}
 
-	// 3. 设置 Headers (保持不变)
+	// 3. Set Headers
 	for k, v := range opt.Headers {
 		req.Header.Set(k, v)
 	}
 
-	// 4. 配置 Transport
+	// 4. Configure Transport
 	transport := &http.Transport{
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
@@ -74,36 +78,35 @@ func (n *NetworkService) SendHttpRequest(opt RequestOption) ResponseResult {
 		TLSHandshakeTimeout: 10 * time.Second,
 	}
 
-	// 处理 TLS/TLCP
+	// Handle TLS/TLCP
 	if opt.TlsVersion == "tlcp" {
-		// --- 修改点：使用 gotlcp 实现国密 TLCP ---
+		// --- Use gotlcp for GM TLCP ---
 		transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-			// 1. 建立基础 TCP 连接
+			// 1. Basic TCP Connection
 			conn, err := net.DialTimeout(network, addr, 10*time.Second)
 			if err != nil {
 				return nil, err
 			}
 
-			// 2. 配置 TLCP
-			// 注意：gotlcp 的 Config 结构通常位于 conf 包中
+			// 2. Configure TLCP
 			tlcpConfig := &tlcp.Config{
-				InsecureSkipVerify: true, // 跳过证书校验（模拟 Postman 行为）
+				InsecureSkipVerify: true, // Skip cert verification (Postman-like)
 			}
 
-			// 3. 进行 TLCP 握手
-			// gotlcp.Client 返回的是 *tlcp.Conn
+			// 3. TLCP Handshake
+			// gotlcp.Client returns *tlcp.Conn
 			tlsConn := tlcp.Client(conn, tlcpConfig)
 
-			// 必须手动 Handshake 以便尽早捕获错误，否则会在 Write 时才触发
+			// Handshake manually to catch errors early
 			if err := tlsConn.HandshakeContext(ctx); err != nil {
 				conn.Close()
-				return nil, fmt.Errorf("TLCP 握手失败: %v", err)
+				return nil, fmt.Errorf("TLCP handshake failed: %v", err)
 			}
 
 			return tlsConn, nil
 		}
 	} else if opt.URL[0:5] == "https" {
-		// 标准 TLS 配置 (保持不变)
+		// Standard TLS Configuration
 		tlsConfig := &tls.Config{
 			InsecureSkipVerify: true,
 		}
@@ -126,19 +129,19 @@ func (n *NetworkService) SendHttpRequest(opt RequestOption) ResponseResult {
 		Timeout:   time.Duration(opt.Timeout) * time.Second,
 	}
 
-	// 5. 发送请求 (保持不变)
+	// 5. Send Request
 	resp, err := client.Do(req)
 	cost := time.Since(start).Milliseconds()
 
 	if err != nil {
-		return ResponseResult{Error: "请求发送失败: " + err.Error(), TimeCost: cost}
+		return ResponseResult{Error: "Request failed: " + err.Error(), TimeCost: cost}
 	}
 	defer resp.Body.Close()
 
-	// 6. 读取响应 (保持不变)
+	// 6. Read Response
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return ResponseResult{Error: "读取响应失败: " + err.Error(), TimeCost: cost}
+		return ResponseResult{Error: "Failed to read response: " + err.Error(), TimeCost: cost}
 	}
 
 	respHeaders := make(map[string]string)
@@ -156,12 +159,15 @@ func (n *NetworkService) SendHttpRequest(opt RequestOption) ResponseResult {
 	}
 }
 
-// --- 收藏夹管理 (XDG) ---
+// --- Collection Management (XDG) ---
 
 const reqCollectionFile = "request_collections.json"
 
+// GetReqCollections retrieves the saved request collection.
+//
+// Returns a slice of CollectionItem.
 func (n *NetworkService) GetReqCollections() []CollectionItem {
-	path := filepath.Join(filepath.Dir(n.getConfigPath()), reqCollectionFile) // 复用之前的路径逻辑
+	path := filepath.Join(filepath.Dir(n.getConfigPath()), reqCollectionFile) // Reuse config path logic
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return []CollectionItem{}
@@ -171,15 +177,19 @@ func (n *NetworkService) GetReqCollections() []CollectionItem {
 	return list
 }
 
+// SaveReqCollection saves a request to the collection.
+//
+// item: The CollectionItem to save.
+// Returns the updated collection list.
 func (n *NetworkService) SaveReqCollection(item CollectionItem) []CollectionItem {
 	list := n.GetReqCollections()
 
-	// 如果 ID 为空，生成新 ID
+	// Generate new ID if empty
 	if item.ID == "" {
 		item.ID = uuid.New().String()
 		list = append(list, item)
 	} else {
-		// 更新现有
+		// Update existing
 		found := false
 		for i, v := range list {
 			if v.ID == item.ID {
@@ -197,6 +207,10 @@ func (n *NetworkService) SaveReqCollection(item CollectionItem) []CollectionItem
 	return list
 }
 
+// DeleteReqCollection removes a request from the collection.
+//
+// id: The ID of the item to remove.
+// Returns the updated collection list.
 func (n *NetworkService) DeleteReqCollection(id string) []CollectionItem {
 	list := n.GetReqCollections()
 	newList := []CollectionItem{}

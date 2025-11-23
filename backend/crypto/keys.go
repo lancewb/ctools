@@ -20,6 +20,10 @@ import (
 	"github.com/google/uuid"
 )
 
+// ParseKey parses key material and returns details about the key.
+//
+// req: The KeyParseRequest containing key data and format.
+// Returns a KeyParseResult or an error.
 func (c *CryptoService) ParseKey(req KeyParseRequest) (KeyParseResult, error) {
 	result := KeyParseResult{
 		Summary: map[string]string{},
@@ -383,6 +387,10 @@ func (c *CryptoService) parseSM9Key(req KeyParseRequest) (KeyParseResult, error)
 	return result, nil
 }
 
+// GenerateKeyPair generates a new key pair for the specified algorithm.
+//
+// req: The KeyGenRequest containing parameters like algorithm, size, and curve.
+// Returns a KeyParseResult containing the generated keys or an error.
 func (c *CryptoService) GenerateKeyPair(req KeyGenRequest) (KeyParseResult, error) {
 	switch strings.ToLower(req.Algorithm) {
 	case "rsa":
