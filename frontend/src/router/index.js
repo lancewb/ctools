@@ -12,7 +12,17 @@ import GroupPing from '../views/network/GroupPing.vue'
 import LitePost from '../views/network/LitePost.vue'
 import ServerManager from '../views/network/ServerManager.vue'
 // 密码工具
-// VPN
+import KeyManager from '../views/crypto/KeyManager.vue'
+import AsymmetricOps from '../views/crypto/AsymmetricOps.vue'
+import SymmetricOps from '../views/crypto/SymmetricOps.vue'
+import HashHmac from '../views/crypto/HashHmac.vue'
+import CertManager from '../views/crypto/CertManager.vue'
+import CertParser from '../views/crypto/CertParser.vue'
+import DerParser from '../views/crypto/DerParser.vue'
+import QuantumPlaceholder from '../views/crypto/QuantumPlaceholder.vue'
+// 其他工具
+import SocksProxy from '../views/other/SocksProxy.vue'
+import GMSSLTester from '../views/other/GMSSLTester.vue'
 
 const routes = [
     {
@@ -66,6 +76,58 @@ const routes = [
         path: '/tool/network/server-mgr',
         name: 'ServerManager',
         component: ServerManager
+    },
+    // 密码工具
+    {
+        path: '/tool/crypto/key-mgr',
+        name: 'KeyManager',
+        component: KeyManager
+    },
+    {
+        path: '/tool/crypto/asymmetric',
+        name: 'AsymmetricOps',
+        component: AsymmetricOps
+    },
+    {
+        path: '/tool/crypto/symmetric',
+        name: 'SymmetricOps',
+        component: SymmetricOps
+    },
+    {
+        path: '/tool/crypto/hash',
+        name: 'HashHmac',
+        component: HashHmac
+    },
+    {
+        path: '/tool/crypto/cert-mgr',
+        name: 'CertManager',
+        component: CertManager
+    },
+    {
+        path: '/tool/crypto/cert-parse',
+        name: 'CertParser',
+        component: CertParser
+    },
+    {
+        path: '/tool/crypto/der-parse',
+        name: 'DerParser',
+        component: DerParser
+    },
+    {
+        path: '/tool/crypto/quantum',
+        name: 'QuantumPlaceholder',
+        component: QuantumPlaceholder
+    },
+    // 其他工具
+    {
+        path: '/tool/other/socks',
+        name: 'SocksProxy',
+        component: SocksProxy
+    },
+    {
+        path: '/tool/other/gmssl',
+        name: 'GMSSLTester',
+        component: GMSSLTester
     },
     {
         path: '/tool/:catId/:id',

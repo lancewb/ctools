@@ -61,7 +61,7 @@
         {{ currentTitle }}
       </div>
       <v-spacer></v-spacer>
-      <v-btn icon="mdi-github" size="small" color="grey-darken-1"></v-btn>
+      <v-btn icon="mdi-information-outline" size="small" color="grey-darken-1" @click="infoDialog = true"></v-btn>
     </v-app-bar>
 
     <v-main class="bg-grey-lighten-5">
@@ -71,6 +71,18 @@
         </transition>
       </router-view>
     </v-main>
+    <v-dialog v-model="infoDialog" max-width="320">
+      <v-card>
+        <v-card-title class="text-subtitle-1 font-weight-bold">关于</v-card-title>
+        <v-card-text>
+          <div class="text-body-2">Maintainer: wangdinglei</div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="primary" @click="infoDialog = false">关闭</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-app>
 </template>
 
@@ -80,6 +92,7 @@ import { useRoute } from 'vue-router'
 import { menuData } from './config/menu'
 
 const drawer = ref(true)
+const infoDialog = ref(false)
 const route = useRoute()
 
 const currentTitle = computed(() => {

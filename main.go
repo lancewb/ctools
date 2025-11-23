@@ -1,7 +1,9 @@
 package main
 
 import (
+	"ctools/backend/crypto"
 	"ctools/backend/network"
+	"ctools/backend/other"
 	"embed"
 
 	"github.com/wailsapp/wails/v2"
@@ -15,7 +17,9 @@ var assets embed.FS
 func main() {
 	// Create an instance of the app structure
 	netService := network.NewNetworkService()
-	app := NewApp(netService)
+	cryptoService := crypto.NewCryptoService()
+	otherService := other.NewOtherService(cryptoService)
+	app := NewApp(netService, cryptoService, otherService)
 
 	// Create application with options
 	err := wails.Run(&options.App{
@@ -30,7 +34,8 @@ func main() {
 		Bind: []interface{}{
 			app,
 			netService,
-			// cryptoService,
+			cryptoService,
+			otherService,
 		},
 	})
 

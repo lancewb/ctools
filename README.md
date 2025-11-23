@@ -17,3 +17,7 @@ to this in your browser, and you can call your Go code from devtools.
 ## Building
 
 To build a redistributable, production mode package, use `wails build`.
+
+## Contributor Guide
+Consult [AGENTS.md](AGENTS.md) for repository-specific build, testing, and review guidelines.
+

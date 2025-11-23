@@ -1,10 +1,14 @@
 # --- Wails 项目特有 ---
 # Wails 构建输出的二进制文件目录
 build/bin/
+build/windows/installer/
+build/macos/app/
 # Wails 前端构建产物 (Vue/Vite 打包后的文件)
 frontend/dist/
+frontend/.DS_Store
 # Wails 自动生成的绑定文件 (根据个人喜好，有时也可以保留，但通常构建时会生成)
 # wailsjs/
+.cache/
 
 # --- 前端 (Vue/Vite/Node) ---
 # 巨大的依赖包目录 (绝对不要上传)
@@ -50,3 +54,6 @@ go.work
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+AGENTS.md
+
+vendor/

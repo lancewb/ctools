@@ -36,20 +36,19 @@ export const menuData = [
             { id: 'hash', title: '哈希运算', icon: 'mdi-fingerprint' },
             { id: 'quantum', title: '量子运算', icon: 'mdi-atom' },
             { id: 'cert-parse', title: '证书解析', icon: 'mdi-file-certificate-outline' },
-            { id: 'key-parse', title: '密钥解析', icon: 'mdi-key-chain' },
+            { id: 'key-mgr', title: '密钥管理', icon: 'mdi-key-chain' },
             { id: 'cert-mgr', title: '证书管理', icon: 'mdi-certificate' },
             { id: 'der-parse', title: 'DER 解析', icon: 'mdi-file-code-outline' },
         ]
     },
     {
-        id: 'vpn',
-        title: 'VPN 工具',
-        icon: 'mdi-vpn',
+        id: 'other',
+        title: '其他工具',
+        icon: 'mdi-tools',
         color: 'light-blue-darken-3',
         children: [
-            { id: 'ssl-vpn', title: 'SSL VPN', icon: 'mdi-shield-check' },
-            { id: 'ipsec-vpn', title: 'IPSec VPN', icon: 'mdi-lock-network' },
-            { id: 'agent-check', title: 'Agent 检测', icon: 'mdi-face-agent' },
+            { id: 'socks', title: 'SOCKS5 代理服务', icon: 'mdi-access-point' },
+            { id: 'gmssl', title: '国密 SSL 检测', icon: 'mdi-shield-lock' }
         ]
     }
 ];

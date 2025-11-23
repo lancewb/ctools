@@ -6,6 +6,7 @@ toolchain go1.24.10
 
 require (
 	gitee.com/Trisia/gotlcp v1.4.3
+	github.com/emmansun/gmsm v0.40.0
 	github.com/go-ping/ping v1.2.0
 	github.com/google/uuid v1.6.0
 	github.com/wailsapp/wails/v2 v2.11.0
@@ -14,7 +15,6 @@ require (
 
 require (
 	github.com/bep/debounce v1.2.1 // indirect
-	github.com/emmansun/gmsm v0.40.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
