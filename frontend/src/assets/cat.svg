@@ -1,0 +1,47 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="300" height="300">
+  <defs>
+    <style type="text/css">
+      /* --- 颜色修改区域开始 --- */
+      .fur-color { fill: #BDBDBD; } /* 主体皮毛改为浅灰色 */
+      .fur-stroke { stroke: #616161; stroke-width: 3px; stroke-linejoin: round; } /* 描边改为深灰色 */
+      .features { fill: #212121; } /* 眼睛改为接近黑色 */
+      .whisker { stroke: #212121; stroke-width: 2px; stroke-linecap: round; } /* 胡须改为接近黑色 */
+      /* --- 颜色修改区域结束 --- */
+      
+      /* 以下保持不变，保留可爱感 */
+      .inner-ear { fill: #F48FB1; } /* 粉色内耳 */
+      .nose { fill: #F48FB1; } /* 粉色鼻子 */
+      .highlight { fill: #FFFFFF; } /* 白色高光 */
+    </style>
+  </defs>
+
+  <g id="Ears">
+    <path d="M45,80 Q30,20 90,60" class="fur-color fur-stroke"/>
+    <path d="M55,75 Q45,40 75,65" class="inner-ear"/>
+    <path d="M155,80 Q170,20 110,60" class="fur-color fur-stroke"/>
+    <path d="M145,75 Q155,40 125,65" class="inner-ear"/>
+  </g>
+
+  <ellipse cx="100" cy="115" rx="75" ry="65" class="fur-color fur-stroke"/>
+
+  <g id="Face">
+    <circle cx="70" cy="110" r="12" class="features"/>
+    <circle cx="130" cy="110" r="12" class="features"/>
+    <circle cx="73" cy="106" r="4" class="highlight"/>
+    <circle cx="133" cy="106" r="4" class="highlight"/>
+    
+    <ellipse cx="100" cy="128" rx="7" ry="5" class="nose"/>
+
+    <path d="M100,133 Q90,145 80,138" fill="none" stroke="#212121" stroke-width="3" stroke-linecap="round"/>
+    <path d="M100,133 Q110,145 120,138" fill="none" stroke="#212121" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <g id="Whiskers" class="whisker">
+    <line x1="55" y1="130" x2="25" y2="125"/>
+    <line x1="55" y1="138" x2="25" y2="138"/>
+    <line x1="55" y1="146" x2="25" y2="151"/>
+    <line x1="145" y1="130" x2="175" y2="125"/>
+    <line x1="145" y1="138" x2="175" y2="138"/>
+    <line x1="145" y1="146" x2="175" y2="151"/>
+  </g>
+</svg>

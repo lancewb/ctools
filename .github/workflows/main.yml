@@ -2,7 +2,6 @@ name: Daily Wails Build & Release
 
 on:
   schedule:
-    # 北京时间凌晨 02:00 (UTC 18:00)
     - cron: '0 18 * * *'
   workflow_dispatch:
 
@@ -10,14 +9,12 @@ permissions:
   contents: write
 
 jobs:
-  # --- 任务一：编译 ---
   build:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [windows-latest]
-        #os: [windows-latest, ubuntu-latest, macos-latest]
 
     steps:
       - name: Checkout
@@ -37,66 +34,26 @@ jobs:
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Install Linux Dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
-
-      # 显式安装前端依赖
       - name: Install Frontend Dependencies
         run: |
           cd frontend
           npm install
 
       - name: Build Wails App
+        # 建议这里明确指定输出文件名，方便后续处理，例如 -o myapp.exe
         run: wails build -clean
 
-      # --- 打包/准备环节 ---
-
-      # Windows: 此时 build/bin 下面已经是 .exe 了，不需要做任何操作，直接稍后上传即可
-
-      # Linux: 压缩为 tar.gz
-      - name: Compress Linux Binary
-        if: runner.os == 'Linux'
-        run: |
-          cd build/bin
-          tar -czvf ../../my-app-linux.tar.gz *
-
-      # macOS: Wails 生成的是 .app 文件夹，必须压缩否则无法上传
-      - name: Compress macOS App
-        if: runner.os == 'macOS'
-        run: |
-          cd build/bin
-          zip -r ../../my-app-macos.zip *.app
-
-      # --- 上传构建产物 (区分处理) ---
-
-      # 1. Windows: 直接上传 exe
+      # Windows 上传
       - name: Upload Windows Artifact
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: windows-release
+          # 这里使用通配符很好，但要注意后续下载时的路径
           path: build/bin/*.exe
 
-      # 2. macOS: 上传 zip
-      - name: Upload macOS Artifact
-        if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-release
-          path: my-app-macos.zip
+      # (Linux 和 macOS 的步骤省略，保持原样即可)
 
-      # 3. Linux: 上传 tar.gz
-      - name: Upload Linux Artifact
-        if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-release
-          path: my-app-linux.tar.gz
-
-  # --- 任务二：发布 Release ---
   release:
     name: Create Release
     needs: build
@@ -106,10 +63,23 @@ jobs:
         id: date
         run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
-      - name: Download All Artifacts
+      # 关键修改点 1: 下载 Artifacts
+      - name: Download Windows Artifact
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          name: windows-release
+          path: ./release-assets  # 下载到一个临时目录，自动解压
+
+      # 如果有其他系统的 artifact，也可以继续下载到同一个目录
+      # - name: Download Linux Artifact
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: linux-release
+      #     path: ./release-assets
+
+      # 关键修改点 2: 列出文件以便调试 (可选，但推荐)
+      - name: List Downloaded Files
+        run: ls -R ./release-assets
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v1
@@ -117,10 +87,10 @@ jobs:
           name: Daily Build ${{ steps.date.outputs.date }}
           tag_name: v${{ steps.date.outputs.date }}
           prerelease: true
-          # 这里修改了匹配规则，增加对 .exe 的支持
+          # 关键修改点 3: 此时 release-assets 目录下就是裸的 .exe 文件
           files: |
-            artifacts/**/*.zip
-            artifacts/**/*.tar.gz
-            artifacts/**/*.exe
+            ./release-assets/*.exe
+            ./release-assets/*.zip
+            ./release-assets/*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

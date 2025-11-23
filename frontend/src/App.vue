@@ -84,12 +84,16 @@
       </v-card>
     </v-dialog>
   </v-app>
+  <div class="cat-overlay">
+    <img :src="catIllustration" alt="可爱喵咪" />
+  </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { menuData } from './config/menu'
+import catIllustration from './assets/cat.svg'
 
 const drawer = ref(true)
 const infoDialog = ref(false)
@@ -123,6 +127,23 @@ const currentTitle = computed(() => {
   /* 改为 32px，刚好容纳图标并有一点点缩进 */
   padding-inline-start: 32px !important;
   text-align: left;
+}
+
+.cat-overlay {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 200px;
+  max-width: 30vw;
+  opacity: 0.1;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.cat-overlay img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 </style>
