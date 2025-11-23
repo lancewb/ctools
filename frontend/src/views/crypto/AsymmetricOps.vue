@@ -91,9 +91,17 @@
 </template>
 
 <script setup>
+/**
+ * AsymmetricOps Component
+ *
+ * Provides a UI for performing asymmetric cryptographic operations (RSA, ECC, SM2, SM9).
+ * Supports encryption, decryption, signing, and verification.
+ */
+
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { RunAsymmetric, ListStoredKeys } from '../../../wailsjs/go/crypto/CryptoService'
 
+// --- Constants & Options ---
 const algorithms = [
   { title: 'RSA', value: 'rsa' },
   { title: 'ECC', value: 'ecc' },
@@ -132,7 +140,12 @@ const symOptions = [
 const macOptions = [
   { title: 'HMAC-SHA256', value: 'hmac-sha256' }
 ]
+const paddingOptions = [
+  { title: 'OAEP', value: 'oaep' },
+  { title: 'PKCS#1 v1.5', value: 'pkcs1' }
+]
 
+// --- State ---
 const form = reactive({
   algorithm: 'rsa',
   operation: 'encrypt',
@@ -152,16 +165,12 @@ const form = reactive({
   eccMode: 'dhaes'
 })
 
-const paddingOptions = [
-  { title: 'OAEP', value: 'oaep' },
-  { title: 'PKCS#1 v1.5', value: 'pkcs1' }
-]
-
 const storedKeys = ref([])
 const running = ref(false)
 const result = ref(null)
 const errorMsg = ref('')
 
+// --- Computed Properties ---
 const operationOptions = computed(() => baseOperations.map(o => ({ title: o.toUpperCase(), value: o })))
 const filteredKeyOptions = computed(() => storedKeys.value
   .filter(k => k.algorithm?.toLowerCase() === form.algorithm)
@@ -170,6 +179,7 @@ const showOaepOptions = computed(() => form.algorithm === 'rsa' && form.padding 
 const showEccOptions = computed(() => form.algorithm === 'ecc')
 const showMacOption = computed(() => showEccOptions.value && form.symmetricCipher === 'aes-256-cbc')
 
+// --- Watchers ---
 watch(() => form.algorithm, (val) => {
   if (val !== 'rsa') {
     form.padding = 'oaep'
@@ -199,6 +209,11 @@ watch(() => form.symmetricCipher, (sym) => {
   }
 })
 
+// --- Methods ---
+
+/**
+ * loadKeys fetches the list of stored keys from the backend.
+ */
 const loadKeys = async () => {
   storedKeys.value = await ListStoredKeys()
   const firstMatch = storedKeys.value.find(k => k.algorithm?.toLowerCase() === form.algorithm)
@@ -207,6 +222,10 @@ const loadKeys = async () => {
   }
 }
 
+/**
+ * execute triggers the asymmetric cryptographic operation in the backend.
+ * Validates the form and updates the result state.
+ */
 const execute = async () => {
   if (!form.keyId) {
     errorMsg.value = '请选择密钥'

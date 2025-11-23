@@ -107,62 +107,61 @@
 </template>
 
 <script setup>
+/**
+ * Hexdump Component
+ *
+ * Extracts raw hex data from mixed text (e.g. Wireshark dumps, logs) and converts it back to a clean Hex string and ASCII representation.
+ * Useful for analyzing network packet captures or log files.
+ */
+
 import { ref } from 'vue'
 
+// --- State ---
 const inputText = ref('')
 const outputHex = ref('')
 const outputAscii = ref('')
 const showSnackbar = ref(false)
 
-// 核心处理逻辑
+// --- Methods ---
+
+/**
+ * processText cleans the input text and extracts Hex data.
+ * It handles various formats like Wireshark output (timestamp offsets, ASCII preview).
+ */
 const processText = () => {
   if (!inputText.value) return
 
   const raw = inputText.value
   let hexStream = ""
 
-  // 1. 判断是否为纯 Hex 字符串 (连续无空格，如 30313233...)
-  // 移除所有空白字符后，如果全是 hex 且长度为偶数，则直接处理
+  // 1. Check for pure Hex (continuous without spaces)
   const cleanAll = raw.replace(/\s/g, '')
   const isPureHex = /^[0-9A-Fa-f]+$/.test(cleanAll) && (cleanAll.length % 2 === 0)
 
   if (isPureHex && cleanAll.length > 30) {
-    // 长度大于30才判定为纯文本，防止把短的 "30 31" 误判
+    // Treat as pure hex stream if length > 30
     hexStream = cleanAll
   } else {
-    // 2. 复杂格式处理 (按行解析)
+    // 2. Complex format processing (line by line)
     const lines = raw.split('\n')
 
     lines.forEach(line => {
       let currentLine = line.trim()
       if (!currentLine) return
 
-      // 步骤 A: 去除右侧的 ASCII 可视化部分
-      // 特征：通常会有两个以上的空格，或者竖线 | 分隔
-      // 我们找到最后一个由"双空格"分隔的部分，如果它看起来像 ASCII，就丢弃
+      // Step A: Remove right-side ASCII preview (often separated by 2+ spaces)
       if (currentLine.includes('  ')) {
-        // 取双空格之前的部分（即去掉了右边的 ASCII 预览）
-        // 例子: "30 31  01" -> "30 31"
-        // 注意：split 可能会分成多段，通常 hex 部分在前面
         const parts = currentLine.split('  ')
-        // 简单策略：只取第一部分，通常 hex 都在最左边（或者左边有时间戳）
-        // 但为了保险，我们重新拼装除了最后一部分之外的内容，或者截断
-        // 对于您的例子，右侧 ASCII 前面都有 3-4 个空格
         currentLine = parts[0]
       }
 
-      // 步骤 B: 去除左侧的时间戳/偏移量
-      // 特征：通常以冒号 : 结尾，如 "2025... 0:" 或 "00000000:"
+      // Step B: Remove left-side timestamp/offset (ends with :)
       if (currentLine.includes(':')) {
         const parts = currentLine.split(':')
-        // 取最后一个冒号之后的部分
-        // 例子: "time: 0: 30 31" -> " 30 31"
         currentLine = parts[parts.length - 1]
       }
 
-      // 步骤 C: 提取剩余部分的 Hex
-      // 经过上面两步，剩下应该是 " 30 31 32 ..." 或者纯粹的 hex
-      // 我们提取所有成对的 Hex 字符
+      // Step C: Extract remaining valid Hex pairs
       const matches = currentLine.match(/[0-9A-Fa-f]{2}/g)
       if (matches) {
         hexStream += matches.join('')
@@ -170,35 +169,36 @@ const processText = () => {
     })
   }
 
-  // 3. 输出 Hex 字符串
+  // 3. Set output
   outputHex.value = hexStream
 
-  // 4. 转换 Hex 为 ASCII (Hexdump)
+  // 4. Convert to ASCII
   outputAscii.value = hexToAscii(hexStream)
 }
 
-// Hex 转 ASCII 字符串
+/**
+ * hexToAscii converts a hex string to its ASCII representation.
+ * Non-printable characters are replaced with dots ('.').
+ *
+ * @param {string} hex - The hex string.
+ * @returns {string} The ASCII string.
+ */
 const hexToAscii = (hex) => {
   let str = ''
   for (let i = 0; i < hex.length; i += 2) {
     const code = parseInt(hex.substr(i, 2), 16)
-    // 根据您的需求，似乎是直接转换所有可打印字符
-    // 标准 ASCII 可打印范围是 32 (space) 到 126 (~)
-    // 您的例子中 '30' -> '0', '40' -> '@' 都在此范围内
-    // 如果遇到不可打印字符，通常显示为 '.'，但按您需求我直接转出来
     if (code >= 32 && code <= 126) {
       str += String.fromCharCode(code)
     } else {
-      // 0x00 - 0x1F 或 > 0x7E，显示为点，或者直接不显示？
-      // 既然您的例子是连续的，我这里用 '.' 占位，保持对齐，或者您可以选择忽略
-      // 观察您的例1：hex len 16 -> ascii len 16。说明是一一对应的。
       str += '.'
     }
   }
   return str
 }
 
-// 剪贴板工具
+/**
+ * copyToClipboard copies text to the clipboard.
+ */
 const copyToClipboard = async (text) => {
   if (!text) return
   try {

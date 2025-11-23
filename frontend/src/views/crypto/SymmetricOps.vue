@@ -80,9 +80,17 @@
 </template>
 
 <script setup>
+/**
+ * SymmetricOps Component
+ *
+ * Provides a UI for symmetric cryptographic operations (AES, SM4, 3DES, ChaCha20).
+ * Supports various modes (CBC, GCM, etc.) and padding schemes.
+ */
+
 import { ref, reactive, computed, watch } from 'vue'
 import { RunSymmetric } from '../../../wailsjs/go/crypto/CryptoService'
 
+// --- Constants & Options ---
 const algorithms = [
   { title: 'AES', value: 'aes' },
   { title: 'SM4', value: 'sm4' },
@@ -110,6 +118,12 @@ const formats = [
   { title: 'Hex', value: 'hex' }
 ]
 
+const outputFormats = [
+  { title: 'Hex', value: 'hex' },
+  { title: 'Base64', value: 'base64' }
+]
+
+// --- State ---
 const form = reactive({
   algorithm: 'aes',
   mode: 'cbc',
@@ -132,15 +146,12 @@ const result = ref(null)
 const errorMsg = ref('')
 const loading = ref(false)
 
-const outputFormats = [
-  { title: 'Hex', value: 'hex' },
-  { title: 'Base64', value: 'base64' }
-]
-
+// --- Computed Properties ---
 const requiresIV = computed(() => ['cbc', 'ctr', 'ecb'].includes(form.mode))
 const requiresNonce = computed(() => form.mode === 'gcm' || form.algorithm === 'chacha20')
 const requiresAAD = computed(() => requiresNonce.value)
 
+// --- Watchers ---
 watch(() => form.algorithm, (val) => {
   if (val === 'chacha20') {
     form.mode = 'chacha'
@@ -150,6 +161,11 @@ watch(() => form.algorithm, (val) => {
   }
 })
 
+// --- Methods ---
+
+/**
+ * execute triggers the symmetric cryptographic operation in the backend.
+ */
 const execute = async () => {
   errorMsg.value = ''
   loading.value = true

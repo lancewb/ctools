@@ -7,7 +7,8 @@ import (
 	"ctools/backend/other"
 )
 
-// App struct
+// App represents the main application structure.
+// It holds references to various services and the application context.
 type App struct {
 	ctx            context.Context
 	networkService *network.NetworkService
@@ -15,7 +16,13 @@ type App struct {
 	otherService   *other.OtherService
 }
 
-// NewApp creates a new App application struct
+// NewApp initializes and returns a new App instance.
+//
+// netService is the service handling network operations.
+// cryptoService is the service handling cryptographic operations.
+// otherService is the service handling other miscellaneous operations.
+//
+// Returns a pointer to the App struct.
 func NewApp(netService *network.NetworkService, cryptoService *crypto.CryptoService, otherService *other.OtherService) *App {
 	return &App{
 		networkService: netService,
@@ -24,7 +31,10 @@ func NewApp(netService *network.NetworkService, cryptoService *crypto.CryptoServ
 	}
 }
 
-// startup is called when the app starts. The context is saved
+// startup is called when the app starts.
+// It saves the application context and passes it to the registered services.
+//
+// ctx is the Wails application context.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.networkService.SetContext(ctx)

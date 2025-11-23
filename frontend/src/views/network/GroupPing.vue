@@ -124,35 +124,49 @@
 </template>
 
 <script setup>
+/**
+ * GroupPing Component
+ *
+ * Provides a UI for scanning a subnet (e.g., 192.168.1.x) to check for active hosts using ICMP Ping.
+ * Displays results in a grid and manages a history of scanned subnets.
+ */
+
 import { ref, computed, onMounted } from 'vue'
-// 引入后端方法 (根据你的 Wails 项目结构，路径可能略有不同)
 import { PingSubnet, GetPingHistory, AddPingHistory, RemovePingHistory, ClearPingHistory } from '../../../wailsjs/go/network/NetworkService.js'
 
+// --- State ---
 const subnetInput = ref('')
 const currentSubnet = ref('')
 const loading = ref(false)
-const results = ref([]) // 存储后端返回的 {id, latency}
+const results = ref([]) // Stores backend results: {id, latency}
 const historyList = ref([])
 
-// 初始化 254 个格子，默认状态
-// 为了让 UI 刚进去就有格子看（虽然是空的），或者选择 Loading 时显示骨架屏
-// 这里我们选择：只有开始扫描后才渲染格子，或者保持 254 个灰色格子
+// --- Computed Properties ---
+// Generates a display list of 254 items. Uses placeholders if no results yet.
 const displayList = computed(() => {
   if (results.value.length > 0) return results.value
-  // 默认生成 1-254 的空数据用于占位显示（可选）
   return Array.from({ length: 254 }, (_, i) => ({ id: i + 1, latency: -1 }))
 })
 
-// 获取颜色 Class
+// --- Methods ---
+
+/**
+ * getStatusClass returns the CSS class based on latency.
+ *
+ * @param {number} latency - The ping latency in milliseconds.
+ * @returns {string} The CSS class string.
+ */
 const getStatusClass = (latency) => {
-  if (latency === -1) return 'bg-grey-lighten-3 text-grey' // 未扫描状态
-  if (latency >= 5000) return 'bg-white border text-grey-lighten-1' // 超时 (白色，加边框防止看不见)
+  if (latency === -1) return 'bg-grey-lighten-3 text-grey' // Not scanned
+  if (latency >= 5000) return 'bg-white border text-grey-lighten-1' // Timeout
   if (latency >= 1000) return 'bg-red text-white' // > 1s
-  if (latency >= 100) return 'bg-orange text-white' // 100ms - 1000ms
+  if (latency >= 100) return 'bg-orange text-white' // 100-1000ms
   return 'bg-green text-white' // < 100ms
 }
 
-// 加载历史记录
+/**
+ * loadHistory fetches the scan history from the backend.
+ */
 const loadHistory = async () => {
   try {
     historyList.value = await GetPingHistory()
@@ -161,33 +175,26 @@ const loadHistory = async () => {
   }
 }
 
-// 开始 Ping
+/**
+ * startPing initiates the subnet scan.
+ */
 const startPing = async () => {
   const target = subnetInput.value.trim()
   if (!target) return
 
-  // 简单的正则校验 (xxx.xxx.xxx)
-  // 实际上可以更严谨，这里简单处理
+  // Simple validation for 3 octets (e.g. 192.168.1)
   if (target.split('.').length !== 3) {
-    // 这里最好加个 Toast 提示
     alert("请输入正确的三位子网号，如 192.168.1")
     return
   }
 
   loading.value = true
   currentSubnet.value = target
-  // 重置结果为初始状态
   results.value = Array.from({ length: 254 }, (_, i) => ({ id: i + 1, latency: -1 }))
 
   try {
-    // 1. 添加到历史
     historyList.value = await AddPingHistory(target)
-
-    // 2. 调用后端 Ping
-    // 注意：这里后端是同步返回所有结果。
-    // 如果是真实场景，建议后端使用 Events.Emit 流式传输，这里按需求做的一次性返回。
     results.value = await PingSubnet(target)
-
   } catch (e) {
     console.error("Ping failed:", e)
   } finally {
@@ -195,16 +202,24 @@ const startPing = async () => {
   }
 }
 
-// 历史记录操作
+/**
+ * reuseHistory populates the input with a history item and starts the scan.
+ */
 const reuseHistory = (subnet) => {
   subnetInput.value = subnet
   startPing()
 }
 
+/**
+ * deleteHistory removes an item from the history.
+ */
 const deleteHistory = async (subnet) => {
   historyList.value = await RemovePingHistory(subnet)
 }
 
+/**
+ * clearAllHistory clears all scan history.
+ */
 const clearAllHistory = async () => {
   await ClearPingHistory()
   historyList.value = []

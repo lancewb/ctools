@@ -265,19 +265,28 @@
 </template>
 
 <script setup>
+/**
+ * DataConvert Component
+ *
+ * Provides utilities for:
+ * 1. Storage Unit Conversion (Base 1024)
+ * 2. Network Bandwidth Conversion (Base 1000)
+ * 3. PPS (Packets Per Second) Calculator based on frame size and bandwidth.
+ */
+
 import { ref, computed } from 'vue'
 
 const activeTab = ref('storage')
 const showSnackbar = ref(false)
 
 // ----------------------------------------------------
-// 1. 存储空间转换逻辑 (1024 进制)
+// 1. Storage Conversion Logic (Base 1024)
 // ----------------------------------------------------
 const storageInput = ref(1)
 const storageUnit = ref('GB')
 const storageUnitOptions = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'bit', 'Kb', 'Mb', 'Gb', 'Tb']
 
-// 基础单位：Bytes
+// Base Unit: Bytes
 const storageToBytes = computed(() => {
   const val = parseFloat(storageInput.value) || 0
   const u = storageUnit.value
@@ -291,9 +300,7 @@ const storageToBytes = computed(() => {
     'TB': K**4,
     'PB': K**5,
     'bit': 1/8,
-    'Kb': (K)/8, // 这里的 Kb 通常指 1024 bits 还是 1000 bits? 在存储界面通常 K=1024
-                 // 但为了严谨，Kb 在存储里很少用。我们假设用户意图是 bit 版本的 K
-                 // 这里采用 1 Kb = 1024 bits = 128 Bytes
+    'Kb': (K)/8,
     'Mb': (K**2)/8,
     'Gb': (K**3)/8,
     'Tb': (K**4)/8,
@@ -307,7 +314,7 @@ const storageResults = computed(() => {
 
   const fmt = (n) => {
     if (n === 0) return '0'
-    // 保留最多4位小数，去除末尾0
+    // Max 4 decimals
     return parseFloat(n.toFixed(4)).toString()
   }
 
@@ -318,18 +325,18 @@ const storageResults = computed(() => {
     'GB': fmt(bytes / K**3),
     'TB': fmt(bytes / K**4),
     'bits': fmt(bytes * 8),
-    'Gb (Gigabits)': fmt(bytes * 8 / K**3) // 1024进制的 Gb
+    'Gb (Gigabits)': fmt(bytes * 8 / K**3)
   }
 })
 
 // ----------------------------------------------------
-// 2. 网络带宽转换逻辑 (1000 进制)
+// 2. Bandwidth Conversion Logic (Base 1000)
 // ----------------------------------------------------
 const bwInput = ref(1000)
 const bwUnit = ref('Mbps')
 const bwUnitOptions = ['bps', 'Kbps', 'Mbps', 'Gbps', 'Tbps', 'B/s', 'KB/s', 'MB/s']
 
-// 基础单位：bps
+// Base Unit: bps
 const bwToBps = computed(() => {
   const val = parseFloat(bwInput.value) || 0
   const u = bwUnit.value
@@ -342,12 +349,7 @@ const bwToBps = computed(() => {
     'Gbps': K**3,
     'Tbps': K**4,
     'B/s': 8,
-    'KB/s': 8 * 1024, // 注意：下载速度 KB/s 通常按 1024 算，还是 1000？
-                      // 这是一个混乱领域。通常软件显示 KB/s 是 1024 进制。
-                      // 但网络 bps 是 1000 进制。
-                      // 我们这里设定：带宽 KB/s = 8 * 1000 bps (简化) 或者 8*1024?
-                      // 约定俗成：B/s 换算到 bps 时，我们采用 1 KB/s = 8192 bps (1024)
-                      // 这样计算“下载速度”更准。
+    'KB/s': 8 * 1024,
     'MB/s': 8 * 1024**2,
   }
   return val * factors[u]
@@ -356,7 +358,7 @@ const bwToBps = computed(() => {
 const bwResults = computed(() => {
   const bps = bwToBps.value
   const K = 1000
-  const K_BIN = 1024 // 用于 Byte 换算
+  const K_BIN = 1024
 
   const fmt = (n) => {
     if (n === 0) return '0'
@@ -369,40 +371,37 @@ const bwResults = computed(() => {
     'Mbps': fmt(bps / K**2),
     'Gbps': fmt(bps / K**3),
     'Tbps': fmt(bps / K**4),
-    // 换算成下载速度 (Byte/s) 通常按 1024 算
-    'MB/s (下载速度)': fmt(bps / 8 / K_BIN**2),
+    'MB/s (Download)': fmt(bps / 8 / K_BIN**2),
     'GB/s': fmt(bps / 8 / K_BIN**3)
   }
 })
 
 // ----------------------------------------------------
-// 3. PPS 计算逻辑
+// 3. PPS Calculation Logic
 // ----------------------------------------------------
-const packetSizeSelect = ref(64) // 下拉框选中的值
-const packetSizeInput = ref(64)  // 自定义输入框的值
+const packetSizeSelect = ref(64) // Selected option
+const packetSizeInput = ref(64)  // Custom input
 
 const packetSizeOptions = [
-  { title: '64 Bytes (最小帧)', value: 64 },
+  { title: '64 Bytes (Min)', value: 64 },
   { title: '128 Bytes', value: 128 },
   { title: '256 Bytes', value: 256 },
   { title: '512 Bytes', value: 512 },
   { title: '1024 Bytes', value: 1024 },
   { title: '1280 Bytes', value: 1280 },
-  { title: '1518 Bytes (标准MTU)', value: 1518 },
+  { title: '1518 Bytes (MTU)', value: 1518 },
   { title: '9000 Bytes (Jumbo)', value: 9000 },
-  { title: '自定义大小...', value: 'custom' }, // 新增选项
+  { title: 'Custom...', value: 'custom' },
 ]
 
-// 修改点 2: 创建一个统一的计算属性获取真实帧长
 const realPacketSize = computed(() => {
   if (packetSizeSelect.value === 'custom') {
-    // 确保输入是数字，如果为空则默认为 64 防止除以 0
     return parseFloat(packetSizeInput.value) || 64
   }
   return packetSizeSelect.value
 })
 
-const OVERHEAD = 20
+const OVERHEAD = 20 // L1 Overhead: 8B Preamble + 12B Inter-frame Gap
 
 // 3.1: Bandwidth -> PPS
 const inputBwForPps = ref(1)
@@ -413,8 +412,6 @@ const calcPps = computed(() => {
   const isGbps = unitBwForPps.value === 'Gbps'
 
   const bps = bwVal * (isGbps ? 1_000_000_000 : 1_000_000)
-
-  // 修改点 3: 使用 realPacketSize.value 替代原来的 packetSize.value
   const frameBits = (realPacketSize.value + OVERHEAD) * 8
 
   return bps / frameBits
@@ -432,8 +429,6 @@ const calcBw = computed(() => {
   const isMpps = unitPpsForBw.value === 'Mpps'
 
   const pps = ppsVal * (isMpps ? 1_000_000 : 1)
-
-  // 修改点 4: 使用 realPacketSize.value 替代原来的 packetSize.value
   const frameBits = (realPacketSize.value + OVERHEAD) * 8
 
   return pps * frameBits
@@ -442,7 +437,9 @@ const calcBw = computed(() => {
 const resultMbps = computed(() => (calcBw.value / 1_000_000).toFixed(3))
 const resultGbps = computed(() => (calcBw.value / 1_000_000_000).toFixed(6))
 
-// 工具
+/**
+ * copy copies text to clipboard.
+ */
 const copy = (val) => {
   navigator.clipboard.writeText(val)
   showSnackbar.value = true

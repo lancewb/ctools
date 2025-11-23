@@ -80,14 +80,23 @@
 </template>
 
 <script setup>
+/**
+ * CertManager Component
+ *
+ * Provides a UI for issuing, listing, and exporting certificates.
+ * Supports RSA and SM2 algorithms.
+ */
+
 import { ref, reactive, onMounted } from 'vue'
 import { IssueCertificate, ListCertificates, DeleteCertificate, ExportCertificate } from '../../../wailsjs/go/crypto/CryptoService'
 
+// --- Constants & Options ---
 const algorithms = [
   { title: 'RSA', value: 'rsa' },
   { title: 'SM2 (双证书)', value: 'sm2' }
 ]
 
+// --- State ---
 const form = reactive({
   algorithm: 'rsa',
   commonName: 'example.local',
@@ -110,10 +119,18 @@ const headers = [
 const exportDialog = ref(false)
 const exportedCert = ref(null)
 
+// --- Methods ---
+
+/**
+ * loadCertificates fetches the list of stored certificates from the backend.
+ */
 const loadCertificates = async () => {
   certificates.value = await ListCertificates()
 }
 
+/**
+ * issue generates a new certificate based on the form data.
+ */
 const issue = async () => {
   issuing.value = true
   errorMsg.value = ''
@@ -128,11 +145,21 @@ const issue = async () => {
   }
 }
 
+/**
+ * removeCert deletes a certificate by its ID.
+ *
+ * @param {string} id - The ID of the certificate to delete.
+ */
 const removeCert = async (id) => {
   await DeleteCertificate(id)
   await loadCertificates()
 }
 
+/**
+ * exportCert retrieves the certificate details for export and opens the dialog.
+ *
+ * @param {string} id - The ID of the certificate to export.
+ */
 const exportCert = async (id) => {
   exportedCert.value = await ExportCertificate(id)
   exportDialog.value = true

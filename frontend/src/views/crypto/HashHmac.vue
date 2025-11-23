@@ -52,9 +52,16 @@
 </template>
 
 <script setup>
+/**
+ * HashHmac Component
+ *
+ * Provides a UI for computing hashes (SHA, SM3, MD5) and HMACs.
+ */
+
 import { ref, reactive } from 'vue'
 import { RunHash } from '../../../wailsjs/go/crypto/CryptoService'
 
+// --- Constants & Options ---
 const algorithms = [
   { title: 'SHA-1', value: 'sha1' },
   { title: 'SHA-256', value: 'sha256' },
@@ -75,6 +82,7 @@ const outputFormats = [
   { title: 'Base64', value: 'base64' }
 ]
 
+// --- State ---
 const form = reactive({
   algorithm: 'sha256',
   mode: 'hash',
@@ -89,6 +97,11 @@ const result = ref(null)
 const errorMsg = ref('')
 const loading = ref(false)
 
+// --- Methods ---
+
+/**
+ * execute computes the hash or HMAC based on the input form data.
+ */
 const execute = async () => {
   errorMsg.value = ''
   loading.value = true

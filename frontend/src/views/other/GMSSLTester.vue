@@ -108,10 +108,18 @@
 </template>
 
 <script setup>
+/**
+ * GMSSLTester Component
+ *
+ * A utility for testing GM SSL (TLCP) connectivity.
+ * Functions as both a Server and a Client to verify SM2 certificates and handshakes.
+ */
+
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { ListCertificates, ListStoredKeys } from '../../../wailsjs/go/crypto/CryptoService'
 import { StartGMSSLServer, StopGMSSLServer, GMSSLServerStatus, RunGMSSLClientTest } from '../../../wailsjs/go/other/OtherService'
 
+// --- State ---
 const serverForm = reactive({
   listenIp: '0.0.0.0',
   port: 8443,
@@ -140,9 +148,15 @@ const clientResult = ref(null)
 const serverLoading = ref(false)
 const clientLoading = ref(false)
 
+// --- Computed Properties ---
 const certOptions = computed(() => certificates.value.map(c => ({ label: `${c.name} (${c.algorithm})`, value: c.id })))
 const keyOptions = computed(() => keys.value.map(k => ({ label: `${k.name} (${k.algorithm})`, value: k.id })))
 
+// --- Methods ---
+
+/**
+ * ensureDefaults selects default certificates/keys if none are selected.
+ */
 const ensureDefaults = () => {
   if (!serverForm.signCertId && certOptions.value.length > 0) {
     serverForm.signCertId = certOptions.value[0].value
@@ -174,6 +188,7 @@ const ensureDefaults = () => {
   }
 }
 
+// --- Watchers ---
 watch(certOptions, () => {
   ensureDefaults()
 })
@@ -182,16 +197,25 @@ watch(keyOptions, () => {
   ensureDefaults()
 })
 
+/**
+ * loadBaseData fetches available certificates and keys.
+ */
 const loadBaseData = async () => {
   certificates.value = await ListCertificates()
   keys.value = await ListStoredKeys()
   ensureDefaults()
 }
 
+/**
+ * refreshServer fetches the current status of the GMSSL server.
+ */
 const refreshServer = async () => {
   serverStatus.value = await GMSSLServerStatus()
 }
 
+/**
+ * startServer starts the GMSSL listener.
+ */
 const startServer = async () => {
   serverLoading.value = true
   try {
@@ -209,6 +233,9 @@ const startServer = async () => {
   }
 }
 
+/**
+ * stopServer stops the GMSSL listener.
+ */
 const stopServer = async () => {
   serverLoading.value = true
   try {
@@ -219,6 +246,9 @@ const stopServer = async () => {
   }
 }
 
+/**
+ * runClient initiates a client connection test to the specified server.
+ */
 const runClient = async () => {
   clientLoading.value = true
   try {

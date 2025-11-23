@@ -53,14 +53,26 @@
 </template>
 
 <script setup>
+/**
+ * CertParser Component
+ *
+ * Provides a UI for parsing PEM-encoded certificates and displaying their details.
+ */
+
 import { ref } from 'vue'
 import { ParseCertificate } from '../../../wailsjs/go/crypto/CryptoService'
 
+// --- State ---
 const pem = ref('')
 const result = ref(null)
 const errorMsg = ref('')
 const loading = ref(false)
 
+// --- Methods ---
+
+/**
+ * parse decodes the PEM certificate and displays its fields.
+ */
 const parse = async () => {
   if (!pem.value) {
     errorMsg.value = '请输入证书'
@@ -77,6 +89,9 @@ const parse = async () => {
   }
 }
 
+/**
+ * stringifyMap helper to display map objects as key=value strings.
+ */
 const stringifyMap = (obj) => {
   if (!obj) return ''
   return Object.entries(obj).map(([k, v]) => `${k}=${v}`).join(', ')

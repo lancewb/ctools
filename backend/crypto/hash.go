@@ -16,6 +16,10 @@ import (
 	"golang.org/x/crypto/blake2s"
 )
 
+// RunHash performs a hash or HMAC operation.
+//
+// req: The HashRequest specifying the algorithm, mode (hash/hmac), input, and optional key.
+// Returns an OperationResult with the hash digest or an error.
 func (c *CryptoService) RunHash(req HashRequest) (OperationResult, error) {
 	algo := strings.ToLower(req.Algorithm)
 	mode := strings.ToLower(req.Mode)

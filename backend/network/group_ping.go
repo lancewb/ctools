@@ -12,12 +12,16 @@ import (
 	"time"
 )
 
+// PingResult represents the result of a ping operation for a specific host ID.
 type PingResult struct {
 	ID      int   `json:"id"`
 	Latency int64 `json:"latency"`
 }
 
-// PingSubnet perform concurrent ping scans on a given subnet.
+// PingSubnet performs concurrent ping scans on a given subnet.
+//
+// subnet: The subnet prefix (e.g., "192.168.1").
+// Returns a slice of PingResult sorted by host ID.
 func (a *NetworkService) PingSubnet(subnet string) []PingResult {
 	var results []PingResult
 	var wg sync.WaitGroup
@@ -76,24 +80,26 @@ func (a *NetworkService) PingSubnet(subnet string) []PingResult {
 	return results
 }
 
-// --- 历史记录管理 (XDG规范) ---
+// --- History Management (XDG Spec) ---
 
 const historyFileName = "ping_history.json"
 
-// 获取配置路径
+// getConfigPath returns the path to the ping history file in the user's config directory.
 func (a *NetworkService) getConfigPath() string {
 	configDir, err := os.UserConfigDir() // Windows: AppData/Roaming, Linux: .config
 	if err != nil {
 		return "."
 	}
-	appDir := filepath.Join(configDir, "WailsToolbox") // 你的应用名
+	appDir := filepath.Join(configDir, "WailsToolbox")
 	if _, err := os.Stat(appDir); os.IsNotExist(err) {
 		os.MkdirAll(appDir, 0755)
 	}
 	return filepath.Join(appDir, historyFileName)
 }
 
-// GetPingHistory 获取历史记录
+// GetPingHistory retrieves the list of recently scanned subnets.
+//
+// Returns a slice of subnet strings.
 func (a *NetworkService) GetPingHistory() []string {
 	path := a.getConfigPath()
 	data, err := os.ReadFile(path)
@@ -105,11 +111,14 @@ func (a *NetworkService) GetPingHistory() []string {
 	return history
 }
 
-// AddPingHistory 添加历史记录 (保留最近50条)
+// AddPingHistory adds a subnet to the history, keeping the most recent 50 entries.
+//
+// subnet: The subnet to add.
+// Returns the updated history list.
 func (a *NetworkService) AddPingHistory(subnet string) []string {
 	history := a.GetPingHistory()
 
-	// 去重：如果已存在，先删除旧的
+	// Dedup: if exists, remove old one
 	newHistory := []string{}
 	for _, h := range history {
 		if h != subnet {
@@ -117,10 +126,10 @@ func (a *NetworkService) AddPingHistory(subnet string) []string {
 		}
 	}
 
-	// 插入到最前面
+	// Insert at front
 	newHistory = append([]string{subnet}, newHistory...)
 
-	// 截取前50条
+	// Truncate to 50
 	if len(newHistory) > 50 {
 		newHistory = newHistory[:50]
 	}
@@ -129,7 +138,10 @@ func (a *NetworkService) AddPingHistory(subnet string) []string {
 	return newHistory
 }
 
-// RemovePingHistory 删除单条
+// RemovePingHistory removes a single subnet from the history.
+//
+// subnet: The subnet to remove.
+// Returns the updated history list.
 func (a *NetworkService) RemovePingHistory(subnet string) []string {
 	history := a.GetPingHistory()
 	newHistory := []string{}
@@ -142,7 +154,7 @@ func (a *NetworkService) RemovePingHistory(subnet string) []string {
 	return newHistory
 }
 
-// ClearPingHistory 清空
+// ClearPingHistory clears the entire ping history.
 func (a *NetworkService) ClearPingHistory() {
 	a.saveHistory([]string{})
 }

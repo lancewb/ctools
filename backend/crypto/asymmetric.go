@@ -43,6 +43,10 @@ type eccOptions struct {
 	macHash   stdcrypto.Hash
 }
 
+// RunAsymmetric performs an asymmetric cryptographic operation based on the request.
+//
+// req: The AsymmetricRequest containing algorithm, operation, and parameters.
+// Returns an OperationResult with the output or an error.
 func (c *CryptoService) RunAsymmetric(req AsymmetricRequest) (OperationResult, error) {
 	switch strings.ToLower(req.Algorithm) {
 	case "rsa":

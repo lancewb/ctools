@@ -7,3 +7,11 @@
     </v-card>
   </v-container>
 </template>
+
+<script setup>
+/**
+ * QuantumPlaceholder Component
+ *
+ * A placeholder view for future Quantum Computing related tools.
+ */
+</script>

@@ -130,9 +130,17 @@
 </template>
 
 <script setup>
+/**
+ * KeyManager Component
+ *
+ * Provides a UI for managing cryptographic keys (RSA, ECC, SM2, SM9).
+ * Supports parsing existing keys, generating new pairs, and storing them in the backend.
+ */
+
 import { ref, reactive, watch, onMounted } from 'vue'
 import { ParseKey, GenerateKeyPair, ListStoredKeys, DeleteStoredKey, ExportStoredKey } from '../../../wailsjs/go/crypto/CryptoService'
 
+// --- Constants & Options ---
 const algorithms = [
   { title: 'RSA', value: 'rsa' },
   { title: 'ECC', value: 'ecc' },
@@ -158,6 +166,7 @@ const variantOptions = [
 
 const curves = ['P256', 'P384', 'P521']
 
+// --- State ---
 const parseForm = reactive({
   name: '',
   algorithm: 'rsa',
@@ -202,6 +211,11 @@ const keyHeaders = [
 const exportDialog = ref(false)
 const exportedKey = ref(null)
 
+// --- Methods ---
+
+/**
+ * handleParse processes the input key material, parses it, and optionally saves it.
+ */
 const handleParse = async () => {
   parseError.value = ''
   parseLoading.value = true
@@ -218,6 +232,9 @@ const handleParse = async () => {
   }
 }
 
+/**
+ * handleGenerate creates a new key pair based on the selected algorithm and parameters.
+ */
 const handleGenerate = async () => {
   genMessage.value = ''
   genLoading.value = true
@@ -235,15 +252,28 @@ const handleGenerate = async () => {
   }
 }
 
+/**
+ * loadKeys fetches the list of stored keys from the backend.
+ */
 const loadKeys = async () => {
   storedKeys.value = await ListStoredKeys()
 }
 
+/**
+ * removeKey deletes a key from storage by its ID.
+ *
+ * @param {string} id - The ID of the key to delete.
+ */
 const removeKey = async (id) => {
   await DeleteStoredKey(id)
   await loadKeys()
 }
 
+/**
+ * exportKey retrieves the key details for export and opens the dialog.
+ *
+ * @param {string} id - The ID of the key to export.
+ */
 const exportKey = async (id) => {
   exportedKey.value = await ExportStoredKey(id)
   exportDialog.value = true

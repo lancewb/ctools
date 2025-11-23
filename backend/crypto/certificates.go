@@ -20,10 +20,17 @@ import (
 	"github.com/google/uuid"
 )
 
+// ListCertificates retrieves all stored certificates.
+//
+// Returns a slice of CertRecord.
 func (c *CryptoService) ListCertificates() []CertRecord {
 	return c.readCerts()
 }
 
+// DeleteCertificate removes a certificate from storage by its ID.
+//
+// id: The unique identifier of the certificate.
+// Returns the updated list of certificates.
 func (c *CryptoService) DeleteCertificate(id string) []CertRecord {
 	certs := c.readCerts()
 	out := make([]CertRecord, 0, len(certs))
@@ -37,6 +44,10 @@ func (c *CryptoService) DeleteCertificate(id string) []CertRecord {
 	return out
 }
 
+// ParseCertificate decodes and parses a PEM-encoded certificate.
+//
+// req: The CertParseRequest containing the PEM data.
+// Returns a CertParseResult with details or an error.
 func (c *CryptoService) ParseCertificate(req CertParseRequest) (CertParseResult, error) {
 	block, _ := pem.Decode([]byte(req.PEM))
 	if block == nil {
@@ -51,6 +62,10 @@ func (c *CryptoService) ParseCertificate(req CertParseRequest) (CertParseResult,
 	return CertParseResult{}, errors.New("unable to parse certificate contents")
 }
 
+// IssueCertificate generates a new certificate based on the request.
+//
+// req: The CertIssueRequest containing parameters like algorithm and common name.
+// Returns a CertIssueResult with the issued certificate and keys, or an error.
 func (c *CryptoService) IssueCertificate(req CertIssueRequest) (CertIssueResult, error) {
 	switch strings.ToLower(req.Algorithm) {
 	case "rsa":

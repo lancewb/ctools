@@ -150,19 +150,27 @@
 </template>
 
 <script setup>
+/**
+ * RandomGen Component
+ *
+ * A configurable random string generator.
+ * Supports customizing length, quantity, and character sets (numbers, letters, special chars).
+ * Uses crypto.getRandomValues for cryptographically secure random generation.
+ */
+
 import { ref, computed } from 'vue'
 
-// 状态定义
+// --- State ---
 const length = ref(16)
 const quantity = ref(1)
-const includeNumbers = ref(true) // 为了完备性，我加了数字选项，默认勾选
-const includeLetters = ref(false) // 默认不勾选 (根据您的描述推测，或者您可以改为 true)
+const includeNumbers = ref(true)
+const includeLetters = ref(false)
 const includeSpecial = ref(false)
 
 const output = ref('')
 const showSnackbar = ref(false)
 
-// 校验配置是否有效
+// --- Computed ---
 const isValidConfig = computed(() => {
   return includeNumbers.value || includeLetters.value || includeSpecial.value
 })
@@ -171,16 +179,20 @@ const resultLines = computed(() => {
   return output.value ? output.value.split('\n').length : 0
 })
 
-// 字符池定义
+// --- Constants ---
 const CHARS_NUM = '0123456789'
 const CHARS_LETTERS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 const CHARS_SPECIAL = '!@#$%^&*()_+-=[]{}|;:\'",./<>?'
 
-// 生成逻辑
+// --- Methods ---
+
+/**
+ * generateStrings creates random strings based on the current configuration.
+ */
 const generateStrings = () => {
   if (!isValidConfig.value) return
 
-  // 1. 构建字符池
+  // 1. Build charset
   let charset = ''
   if (includeNumbers.value) charset += CHARS_NUM
   if (includeLetters.value) charset += CHARS_LETTERS
@@ -189,28 +201,33 @@ const generateStrings = () => {
   const charsetLen = charset.length
   const resultArr = []
 
-  // 2. 循环生成
+  // 2. Generate loop
   for (let i = 0; i < quantity.value; i++) {
     let str = ''
-    // 使用 crypto.getRandomValues 获取更安全的随机数
+    // Use crypto.getRandomValues for better randomness
     const randomValues = new Uint32Array(length.value)
     window.crypto.getRandomValues(randomValues)
 
     for (let j = 0; j < length.value; j++) {
-      // 取模映射到字符池
       str += charset[randomValues[j] % charsetLen]
     }
     resultArr.push(str)
   }
 
-  // 3. 输出
+  // 3. Output
   output.value = resultArr.join('\n')
 }
 
+/**
+ * clearOutput clears the generated text area.
+ */
 const clearOutput = () => {
   output.value = ''
 }
 
+/**
+ * copyToClipboard copies the output to the system clipboard.
+ */
 const copyToClipboard = () => {
   if (output.value) {
     navigator.clipboard.writeText(output.value)
