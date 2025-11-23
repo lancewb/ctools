@@ -6,12 +6,32 @@ export function AddPingHistory(arg1) {
   return window['go']['network']['NetworkService']['AddPingHistory'](arg1);
 }
 
+export function CheckServerStatus(arg1) {
+  return window['go']['network']['NetworkService']['CheckServerStatus'](arg1);
+}
+
 export function ClearPingHistory() {
   return window['go']['network']['NetworkService']['ClearPingHistory']();
 }
 
+export function DeleteReqCollection(arg1) {
+  return window['go']['network']['NetworkService']['DeleteReqCollection'](arg1);
+}
+
+export function DeleteServer(arg1) {
+  return window['go']['network']['NetworkService']['DeleteServer'](arg1);
+}
+
 export function GetPingHistory() {
   return window['go']['network']['NetworkService']['GetPingHistory']();
+}
+
+export function GetReqCollections() {
+  return window['go']['network']['NetworkService']['GetReqCollections']();
+}
+
+export function GetServerList() {
+  return window['go']['network']['NetworkService']['GetServerList']();
 }
 
 export function PingSubnet(arg1) {
@@ -20,6 +40,18 @@ export function PingSubnet(arg1) {
 
 export function RemovePingHistory(arg1) {
   return window['go']['network']['NetworkService']['RemovePingHistory'](arg1);
+}
+
+export function SaveReqCollection(arg1) {
+  return window['go']['network']['NetworkService']['SaveReqCollection'](arg1);
+}
+
+export function SaveServer(arg1) {
+  return window['go']['network']['NetworkService']['SaveServer'](arg1);
+}
+
+export function SendHttpRequest(arg1) {
+  return window['go']['network']['NetworkService']['SendHttpRequest'](arg1);
 }
 
 export function SetContext(arg1) {

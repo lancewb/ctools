@@ -5,12 +5,28 @@ import {context} from '../models';
 
 export function AddPingHistory(arg1:string):Promise<Array<string>>;
 
+export function CheckServerStatus(arg1:network.ServerConfig):Promise<network.ServerStatus>;
+
 export function ClearPingHistory():Promise<void>;
 
+export function DeleteReqCollection(arg1:string):Promise<Array<network.CollectionItem>>;
+
+export function DeleteServer(arg1:string):Promise<Array<network.ServerConfig>>;
+
 export function GetPingHistory():Promise<Array<string>>;
+
+export function GetReqCollections():Promise<Array<network.CollectionItem>>;
+
+export function GetServerList():Promise<Array<network.ServerConfig>>;
 
 export function PingSubnet(arg1:string):Promise<Array<network.PingResult>>;
 
 export function RemovePingHistory(arg1:string):Promise<Array<string>>;
+
+export function SaveReqCollection(arg1:network.CollectionItem):Promise<Array<network.CollectionItem>>;
+
+export function SaveServer(arg1:network.ServerConfig):Promise<Array<network.ServerConfig>>;
+
+export function SendHttpRequest(arg1:network.RequestOption):Promise<network.ResponseResult>;
 
 export function SetContext(arg1:context.Context):Promise<void>;

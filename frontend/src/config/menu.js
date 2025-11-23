@@ -20,9 +20,8 @@ export const menuData = [
         icon: 'mdi-ip-network',
         color: 'blue-darken-1',
         children: [
-            { id: 'curl', title: 'Curl 模拟', icon: 'mdi-web' },
+            { id: 'curl', title: '精简POST', icon: 'mdi-web' },
             { id: 'ping', title: '群 Ping', icon: 'mdi-access-point-network' },
-            { id: 'ssh', title: 'SSH 终端', icon: 'mdi-console-line' },
             { id: 'server-mgr', title: '服务器管理', icon: 'mdi-server' },
         ]
     },
