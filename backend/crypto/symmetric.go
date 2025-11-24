@@ -19,10 +19,6 @@ import (
 func (c *CryptoService) RunSymmetric(req SymmetricRequest) (OperationResult, error) {
 	algo := strings.ToLower(req.Algorithm)
 	op := strings.ToLower(req.Operation)
-	if op != "encrypt" && op != "decrypt" {
-		return OperationResult{}, errors.New("operation must be encrypt or decrypt")
-	}
-
 	input, err := decodeBlob(req.Input, req.InputFormat)
 	if err != nil {
 		return OperationResult{}, fmt.Errorf("invalid input: %w", err)
@@ -30,6 +26,17 @@ func (c *CryptoService) RunSymmetric(req SymmetricRequest) (OperationResult, err
 	key, err := decodeBlob(req.Key, req.KeyFormat)
 	if err != nil {
 		return OperationResult{}, fmt.Errorf("invalid key: %w", err)
+	}
+	switch op {
+	case "cmac":
+		return runCMACOperation(algo, key, input, req)
+	case "diversify8", "div8":
+		return runDiversifyOperation(algo, 8, key, input, req)
+	case "diversify16", "div16":
+		return runDiversifyOperation(algo, 16, key, input, req)
+	}
+	if op != "encrypt" && op != "decrypt" {
+		return OperationResult{}, errors.New("operation must be encrypt or decrypt")
 	}
 	mode := strings.ToLower(req.Mode)
 	padding := strings.ToLower(req.Padding)
@@ -334,4 +341,151 @@ func bytesRepeat(b byte, count int) []byte {
 		out[i] = b
 	}
 	return out
+}
+
+func runCMACOperation(algo string, key, input []byte, req SymmetricRequest) (OperationResult, error) {
+	block, err := resolveBlockCipher(algo, key)
+	if err != nil {
+		return OperationResult{}, err
+	}
+	tag, err := computeCMAC(block, input)
+	if err != nil {
+		return OperationResult{}, err
+	}
+	return OperationResult{
+		Output: encodeOutputBytes(tag, req.OutputFormat),
+		Details: map[string]string{
+			"base64": encodeBase64(tag),
+		},
+	}, nil
+}
+
+func runDiversifyOperation(algo string, blockSize int, key, diversifier []byte, req SymmetricRequest) (OperationResult, error) {
+	block, err := resolveBlockCipher(algo, key)
+	if err != nil {
+		return OperationResult{}, err
+	}
+	if block.BlockSize() != blockSize {
+		return OperationResult{}, fmt.Errorf("%s diversification requires %d-byte block cipher", strings.ToUpper(algo), blockSize)
+	}
+	if len(diversifier) != blockSize {
+		return OperationResult{}, fmt.Errorf("diversifier must be %d bytes", blockSize)
+	}
+	out := make([]byte, blockSize)
+	block.Encrypt(out, diversifier)
+	return OperationResult{
+		Output: encodeOutputBytes(out, req.OutputFormat),
+		Details: map[string]string{
+			"base64": encodeBase64(out),
+		},
+	}, nil
+}
+
+func resolveBlockCipher(algo string, key []byte) (cipher.Block, error) {
+	switch strings.ToLower(algo) {
+	case "aes":
+		if len(key) != 16 && len(key) != 24 && len(key) != 32 {
+			return nil, errors.New("AES key must be 16/24/32 bytes")
+		}
+		return aes.NewCipher(key)
+	case "sm4":
+		if len(key) != 16 {
+			return nil, errors.New("SM4 key must be 16 bytes")
+		}
+		return sm4.NewCipher(key)
+	case "3des", "des3", "triple-des":
+		if len(key) != 24 {
+			return nil, errors.New("3DES key must be 24 bytes")
+		}
+		return des.NewTripleDESCipher(key)
+	default:
+		return nil, fmt.Errorf("unsupported block cipher for %s", algo)
+	}
+}
+
+func computeCMAC(block cipher.Block, msg []byte) ([]byte, error) {
+	k1, k2, err := cmacSubkeys(block)
+	if err != nil {
+		return nil, err
+	}
+	bs := block.BlockSize()
+	var blockCount int
+	complete := false
+	if len(msg) == 0 {
+		blockCount = 1
+	} else {
+		blockCount = len(msg) / bs
+		complete = len(msg)%bs == 0
+		if !complete {
+			blockCount++
+		}
+	}
+	last := make([]byte, bs)
+	if len(msg) > 0 {
+		copy(last, msg[(blockCount-1)*bs:])
+	}
+	if complete && len(msg) > 0 {
+		xorBytes(last, last, k1)
+	} else {
+		padIndex := len(msg) % bs
+		last[padIndex] = 0x80
+		for i := padIndex + 1; i < bs; i++ {
+			last[i] = 0
+		}
+		xorBytes(last, last, k2)
+	}
+	x := make([]byte, bs)
+	buf := make([]byte, bs)
+	for i := 0; i < blockCount-1; i++ {
+		blockData := msg[i*bs : (i+1)*bs]
+		xorBytes(buf, x, blockData)
+		block.Encrypt(x, buf)
+	}
+	xorBytes(buf, x, last)
+	block.Encrypt(x, buf)
+	return x, nil
+}
+
+func cmacSubkeys(block cipher.Block) ([]byte, []byte, error) {
+	bs := block.BlockSize()
+	rb, err := cmacRbConstant(bs)
+	if err != nil {
+		return nil, nil, err
+	}
+	L := make([]byte, bs)
+	block.Encrypt(L, make([]byte, bs))
+	k1 := cmacDouble(L, rb)
+	k2 := cmacDouble(k1, rb)
+	return k1, k2, nil
+}
+
+func cmacDouble(input []byte, rb byte) []byte {
+	out := make([]byte, len(input))
+	var carry byte
+	for i := len(input) - 1; i >= 0; i-- {
+		b := input[i]
+		out[i] = (b << 1) | carry
+		carry = (b >> 7) & 0x01
+	}
+	if carry != 0 {
+		out[len(out)-1] ^= rb
+	}
+	return out
+}
+
+func cmacRbConstant(blockSize int) (byte, error) {
+	switch blockSize {
+	case 16:
+		return 0x87, nil
+	case 8:
+		return 0x1B, nil
+	default:
+		return 0, fmt.Errorf("unsupported CMAC block size: %d", blockSize)
+	}
+}
+
+func xorBytes(dst, a, b []byte) {
+	for i := 0; i < len(dst); i++ {
+		dst[i] = a[i] ^ b[i]
+	}
 }

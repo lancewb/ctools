@@ -66,6 +66,10 @@ const algorithms = [
   { title: 'SHA-1', value: 'sha1' },
   { title: 'SHA-256', value: 'sha256' },
   { title: 'SHA-512', value: 'sha512' },
+  { title: 'SHA3-224', value: 'sha3-224' },
+  { title: 'SHA3-256', value: 'sha3-256' },
+  { title: 'SHA3-384', value: 'sha3-384' },
+  { title: 'SHA3-512', value: 'sha3-512' },
   { title: 'SM3', value: 'sm3' },
   { title: 'MD5', value: 'md5' },
   { title: 'BLAKE2b-256', value: 'blake2b' }

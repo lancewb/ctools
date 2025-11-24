@@ -11,10 +11,16 @@
             <v-select v-model="form.mode" :items="modeOptions" label="模式" density="comfortable" />
           </v-col>
           <v-col cols="12" md="3">
-            <v-select v-model="form.padding" :items="paddingOptions" label="填充" density="comfortable" :disabled="['ctr','gcm','chacha'].includes(form.mode)" />
+            <v-select
+              v-model="form.padding"
+              :items="paddingOptions"
+              label="填充"
+              density="comfortable"
+              :disabled="['ctr','gcm','chacha'].includes(form.mode) || isSpecialOp"
+            />
           </v-col>
           <v-col cols="12" md="3">
-            <v-select v-model="form.operation" :items="[{title:'加密',value:'encrypt'},{title:'解密',value:'decrypt'}]" label="操作" density="comfortable" />
+            <v-select v-model="form.operation" :items="operationOptions" label="操作" density="comfortable" />
           </v-col>
           <v-col cols="12" md="4">
             <v-select v-model="form.keyFormat" :items="formats" label="密钥格式" density="comfortable" />
@@ -98,6 +104,14 @@ const algorithms = [
   { title: 'ChaCha20-Poly1305', value: 'chacha20' }
 ]
 
+const operationOptions = [
+  { title: '加密', value: 'encrypt' },
+  { title: '解密', value: 'decrypt' },
+  { title: '8字节分散', value: 'diversify8' },
+  { title: '16字节分散', value: 'diversify16' },
+  { title: 'CMAC', value: 'cmac' }
+]
+
 const modeOptions = [
   { title: 'CBC', value: 'cbc' },
   { title: 'CTR', value: 'ctr' },
@@ -147,9 +161,10 @@ const errorMsg = ref('')
 const loading = ref(false)
 
 // --- Computed Properties ---
-const requiresIV = computed(() => ['cbc', 'ctr', 'ecb'].includes(form.mode))
-const requiresNonce = computed(() => form.mode === 'gcm' || form.algorithm === 'chacha20')
-const requiresAAD = computed(() => requiresNonce.value)
+const isSpecialOp = computed(() => ['diversify8', 'diversify16', 'cmac'].includes(form.operation))
+const requiresIV = computed(() => !isSpecialOp.value && ['cbc', 'ctr', 'ecb'].includes(form.mode))
+const requiresNonce = computed(() => !isSpecialOp.value && (form.mode === 'gcm' || form.algorithm === 'chacha20'))
+const requiresAAD = computed(() => !isSpecialOp.value && requiresNonce.value)
 
 // --- Watchers ---
 watch(() => form.algorithm, (val) => {

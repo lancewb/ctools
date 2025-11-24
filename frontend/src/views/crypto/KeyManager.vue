@@ -64,8 +64,22 @@
               <v-col cols="12" md="6">
                 <v-text-field v-model.number="genForm.keySize" label="RSA 位数" type="number" density="comfortable" :disabled="genForm.algorithm !== 'rsa'" />
               </v-col>
-              <v-col cols="12" md="6">
-                <v-select v-model="genForm.curve" :items="curves" label="椭圆曲线" density="comfortable" :disabled="genForm.algorithm !== 'ecc'" />
+              <v-col cols="12" md="6" v-if="genForm.algorithm === 'rsa'">
+                <v-select v-model.number="genForm.publicExponent" :items="rsaPublicExponents" label="RSA 公钥指数" density="comfortable" />
+              </v-col>
+              <v-col cols="12" md="6" v-if="genForm.algorithm === 'ecc'">
+                <v-select v-model="genForm.curveFamily" :items="curveFamilyOptions" label="曲线家族" density="comfortable" />
+              </v-col>
+              <v-col cols="12" md="6" v-if="genForm.algorithm === 'ecc'">
+                <v-select
+                  v-model="genForm.curve"
+                  :items="availableCurves"
+                  label="椭圆曲线"
+                  density="comfortable"
+                  item-title="title"
+                  item-value="value"
+                  :item-props="true"
+                />
               </v-col>
               <v-col cols="12" md="6">
                 <v-select v-model="genForm.variant" :items="variantOptions" label="变体" density="comfortable" :disabled="genForm.algorithm !== 'sm9'" />
@@ -137,7 +151,7 @@
  * Supports parsing existing keys, generating new pairs, and storing them in the backend.
  */
 
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { ParseKey, GenerateKeyPair, ListStoredKeys, DeleteStoredKey, ExportStoredKey } from '../../../wailsjs/go/crypto/CryptoService'
 
 // --- Constants & Options ---
@@ -164,7 +178,73 @@ const variantOptions = [
   { title: '加密主密钥', value: 'encrypt-master' }
 ]
 
-const curves = ['P256', 'P384', 'P521']
+const rsaPublicExponents = [
+  { title: '65537 (默认)', value: 65537 },
+  { title: '3', value: 3 }
+]
+
+const eccCurveFamilies = [
+  {
+    title: 'NIST (P 系列)',
+    value: 'nist-p',
+    curves: [
+      { title: 'P-224 (secp224r1)', value: 'nist-p224' },
+      { title: 'P-256 (secp256r1)', value: 'nist-p256' },
+      { title: 'P-384 (secp384r1)', value: 'nist-p384' },
+      { title: 'P-521 (secp521r1)', value: 'nist-p521' }
+    ]
+  },
+  {
+    title: 'NIST (K 系列)',
+    value: 'nist-k',
+    curves: [
+      { title: 'K-192 (secp192k1)', value: 'secp192k1' },
+      { title: 'K-224 (secp224k1)', value: 'secp224k1' },
+      { title: 'K-256 (secp256k1)', value: 'secp256k1' }
+    ]
+  },
+  {
+    title: 'NIST (B 系列)',
+    value: 'nist-b',
+    curves: [
+      { title: 'B-163 (暂未支持)', value: 'nist-b163', disabled: true },
+      { title: 'B-233 (暂未支持)', value: 'nist-b233', disabled: true },
+      { title: 'B-283 (暂未支持)', value: 'nist-b283', disabled: true },
+      { title: 'B-409 (暂未支持)', value: 'nist-b409', disabled: true },
+      { title: 'B-571 (暂未支持)', value: 'nist-b571', disabled: true }
+    ]
+  },
+  {
+    title: 'SECG',
+    value: 'secg',
+    curves: [
+      { title: 'secp256k1', value: 'secp256k1' },
+      { title: 'secp224k1', value: 'secp224k1' },
+      { title: 'secp192k1', value: 'secp192k1' }
+    ]
+  },
+  {
+    title: 'X9.62',
+    value: 'x962',
+    curves: [
+      { title: 'prime256v1', value: 'prime256v1' }
+    ]
+  },
+  {
+    title: 'Brainpool',
+    value: 'brainpool',
+    curves: [
+      { title: 'Brainpool P256r1', value: 'brainpool-p256r1' },
+      { title: 'Brainpool P384r1', value: 'brainpool-p384r1' },
+      { title: 'Brainpool P512r1', value: 'brainpool-p512r1' },
+      { title: 'Brainpool P256t1', value: 'brainpool-p256t1' },
+      { title: 'Brainpool P384t1', value: 'brainpool-p384t1' },
+      { title: 'Brainpool P512t1', value: 'brainpool-p512t1' }
+    ]
+  }
+]
+
+const curveFamilyOptions = eccCurveFamilies.map((family) => ({ title: family.title, value: family.value }))
 
 // --- State ---
 const parseForm = reactive({
@@ -182,6 +262,35 @@ watch(usageInput, (val) => {
   parseForm.usage = val.split(',').map(v => v.trim()).filter(Boolean)
 })
 
+watch(() => genForm.curveFamily, (familyValue) => {
+  const family = eccCurveFamilies.find(f => f.value === familyValue)
+  if (!family) {
+    genForm.curve = ''
+    return
+  }
+  const hasCurrent = family.curves.some(curve => curve.value === genForm.curve && !curve.disabled)
+  if (!hasCurrent) {
+    const fallback = family.curves.find(curve => !curve.disabled)
+    genForm.curve = fallback ? fallback.value : ''
+  }
+})
+
+watch(() => genForm.algorithm, (alg) => {
+  if (alg === 'ecc') {
+    const family = eccCurveFamilies.find(f => f.value === genForm.curveFamily)
+    if (!family) {
+      genForm.curveFamily = 'nist-p'
+    }
+    const available = eccCurveFamilies.find(f => f.value === genForm.curveFamily)
+    if (available) {
+      const fallback = available.curves.find(curve => !curve.disabled)
+      if (fallback && fallback.value !== genForm.curve) {
+        genForm.curve = fallback.value
+      }
+    }
+  }
+})
+
 const parseResult = ref(null)
 const parseLoading = ref(false)
 const parseError = ref('')
@@ -189,10 +298,17 @@ const parseError = ref('')
 const genForm = reactive({
   algorithm: 'rsa',
   keySize: 2048,
-  curve: 'P256',
+  curveFamily: 'nist-p',
+  curve: 'nist-p256',
+  publicExponent: 65537,
   variant: 'sign-master',
   name: '',
   save: true
+})
+
+const availableCurves = computed(() => {
+  const family = eccCurveFamilies.find((item) => item.value === genForm.curveFamily)
+  return family ? family.curves : []
 })
 
 const genLoading = ref(false)

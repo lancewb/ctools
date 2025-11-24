@@ -51,6 +51,15 @@
               <v-col cols="12">
                 <v-textarea v-model="form.payload" label="数据" rows="6" auto-grow />
               </v-col>
+              <v-col cols="12" md="6" v-if="['sign','verify'].includes(form.operation)">
+                <v-switch
+                  v-model="form.payloadIsHash"
+                  label="输入为哈希值（不重复计算）"
+                  density="comfortable"
+                  inset
+                  hide-details
+                />
+              </v-col>
               <v-col cols="12" v-if="form.operation === 'verify'">
                 <v-textarea v-model="form.signature" label="签名" rows="3" auto-grow />
               </v-col>
@@ -141,8 +150,11 @@ const macOptions = [
   { title: 'HMAC-SHA256', value: 'hmac-sha256' }
 ]
 const paddingOptions = [
-  { title: 'OAEP', value: 'oaep' },
-  { title: 'PKCS#1 v1.5', value: 'pkcs1' }
+  { title: 'OAEP (加密)', value: 'oaep' },
+  { title: 'PKCS#1 v1.5 (数据)', value: 'pkcs1' },
+  { title: 'NONE (无填充)', value: 'none' },
+  { title: 'PSS (签名)', value: 'pss' },
+  { title: 'DATA (PKCS#1 v1.5 签名)', value: 'data' }
 ]
 
 // --- State ---
@@ -162,7 +174,8 @@ const form = reactive({
   kdf: 'sha256',
   symmetricCipher: 'aes-256-gcm',
   macAlgorithm: 'hmac-sha256',
-  eccMode: 'dhaes'
+  eccMode: 'dhaes',
+  payloadIsHash: false
 })
 
 const storedKeys = ref([])
@@ -175,7 +188,7 @@ const operationOptions = computed(() => baseOperations.map(o => ({ title: o.toUp
 const filteredKeyOptions = computed(() => storedKeys.value
   .filter(k => k.algorithm?.toLowerCase() === form.algorithm)
   .map(k => ({ label: `${k.name} (${k.keyType})`, value: k.id })))
-const showOaepOptions = computed(() => form.algorithm === 'rsa' && form.padding !== 'pkcs1')
+const showOaepOptions = computed(() => form.algorithm === 'rsa' && form.padding === 'oaep')
 const showEccOptions = computed(() => form.algorithm === 'ecc')
 const showMacOption = computed(() => showEccOptions.value && form.symmetricCipher === 'aes-256-cbc')
 

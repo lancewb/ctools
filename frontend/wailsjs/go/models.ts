@@ -3,6 +3,7 @@ export namespace crypto {
 	export class AsymmetricRequest {
 	    algorithm: string;
 	    operation: string;
+	    payloadIsHash: boolean;
 	    keyId: string;
 	    peerKeyId: string;
 	    keyData: string;
@@ -29,6 +30,7 @@ export namespace crypto {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.algorithm = source["algorithm"];
 	        this.operation = source["operation"];
+	        this.payloadIsHash = source["payloadIsHash"];
 	        this.keyId = source["keyId"];
 	        this.peerKeyId = source["peerKeyId"];
 	        this.keyData = source["keyData"];
@@ -252,8 +254,10 @@ export namespace crypto {
 	export class DerNode {
 	    tag: number;
 	    class: string;
+	    label?: string;
 	    constructed: boolean;
 	    length: number;
+	    value?: string;
 	    hex: string;
 	    children?: DerNode[];
 	
@@ -265,8 +269,10 @@ export namespace crypto {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.tag = source["tag"];
 	        this.class = source["class"];
+	        this.label = source["label"];
 	        this.constructed = source["constructed"];
 	        this.length = source["length"];
+	        this.value = source["value"];
 	        this.hex = source["hex"];
 	        this.children = this.convertValues(source["children"], DerNode);
 	    }
@@ -364,6 +370,7 @@ export namespace crypto {
 	    algorithm: string;
 	    keySize: number;
 	    curve: string;
+	    publicExponent: number;
 	    usage: string[];
 	    variant: string;
 	    save: boolean;
@@ -379,6 +386,7 @@ export namespace crypto {
 	        this.algorithm = source["algorithm"];
 	        this.keySize = source["keySize"];
 	        this.curve = source["curve"];
+	        this.publicExponent = source["publicExponent"];
 	        this.usage = source["usage"];
 	        this.variant = source["variant"];
 	        this.save = source["save"];

@@ -14,6 +14,7 @@ import (
 	"github.com/emmansun/gmsm/sm3"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/blake2s"
+	"golang.org/x/crypto/sha3"
 )
 
 // RunHash performs a hash or HMAC operation.
@@ -68,6 +69,14 @@ func selectHashFunc(name string) (func() hash.Hash, error) {
 		return sha256.New, nil
 	case "sha512":
 		return sha512.New, nil
+	case "sha3", "sha3-256":
+		return sha3.New256, nil
+	case "sha3-224":
+		return sha3.New224, nil
+	case "sha3-384":
+		return sha3.New384, nil
+	case "sha3-512":
+		return sha3.New512, nil
 	case "md5":
 		return md5.New, nil
 	case "sm3":

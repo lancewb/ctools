@@ -72,10 +72,18 @@ func (c *CryptoService) runRSAOperation(req AsymmetricRequest) (OperationResult,
 	if err != nil {
 		return OperationResult{}, err
 	}
+	payloadIsHash := req.PayloadIsHash
 	outputFormat := normalizeOutputFormat(req.OutputFormat)
 	padding := strings.ToLower(req.Padding)
 	if padding == "" {
-		padding = "oaep"
+		if op == "sign" || op == "verify" {
+			padding = "pss"
+		} else {
+			padding = "oaep"
+		}
+	}
+	if padding == "data" {
+		padding = "pkcs1"
 	}
 	oaepHash, err := resolveHashAlgorithm(req.OAEPHash, stdcrypto.SHA256)
 	if err != nil {
@@ -88,6 +96,9 @@ func (c *CryptoService) runRSAOperation(req AsymmetricRequest) (OperationResult,
 
 	switch op {
 	case "encrypt":
+		if padding == "pss" {
+			return OperationResult{}, errors.New("PSS padding is only valid for signatures")
+		}
 		pub := mat.publicPEM
 		if pub == "" && mat.privatePEM != "" {
 			key, err := parseRSAPrivate(mat.privatePEM)
@@ -105,9 +116,13 @@ func (c *CryptoService) runRSAOperation(req AsymmetricRequest) (OperationResult,
 			return OperationResult{}, err
 		}
 		var ciphertext []byte
-		if padding == "pkcs1" {
+		switch padding {
+		case "pkcs1":
 			ciphertext, err = rsa.EncryptPKCS1v15(rand.Reader, pubKey, payload)
-		} else {
+		case "none":
+			ciphertext, err = rsaRawEncrypt(pubKey, payload)
+		default:
+			padding = "oaep"
 			ciphertext, err = encryptRSAOAEP(pubKey, payload, nil, oaepHash, mgfHash)
 		}
 		if err != nil {
@@ -120,6 +135,9 @@ func (c *CryptoService) runRSAOperation(req AsymmetricRequest) (OperationResult,
 			},
 		}, nil
 	case "decrypt":
+		if padding == "pss" {
+			return OperationResult{}, errors.New("PSS padding is only valid for signatures")
+		}
 		if mat.privatePEM == "" {
 			return OperationResult{}, errors.New("missing RSA private key")
 		}
@@ -128,9 +146,13 @@ func (c *CryptoService) runRSAOperation(req AsymmetricRequest) (OperationResult,
 			return OperationResult{}, err
 		}
 		var plaintext []byte
-		if padding == "pkcs1" {
+		switch padding {
+		case "pkcs1":
 			plaintext, err = rsa.DecryptPKCS1v15(rand.Reader, priv, payload)
-		} else {
+		case "none":
+			plaintext, err = rsaRawDecrypt(priv, payload)
+		default:
+			padding = "oaep"
 			plaintext, err = priv.Decrypt(rand.Reader, payload, &rsa.OAEPOptions{
 				Hash:    oaepHash,
 				MGFHash: mgfHash,
@@ -154,8 +176,20 @@ func (c *CryptoService) runRSAOperation(req AsymmetricRequest) (OperationResult,
 		if err != nil {
 			return OperationResult{}, err
 		}
-		digest := sha256.Sum256(payload)
-		sig, err := rsa.SignPSS(rand.Reader, priv, stdcrypto.SHA256, digest[:], nil)
+		var sig []byte
+		digest := payload
+		if padding != "none" && !payloadIsHash {
+			sum := sha256.Sum256(payload)
+			digest = sum[:]
+		}
+		switch padding {
+		case "none":
+			sig, err = rsa.SignPKCS1v15(rand.Reader, priv, stdcrypto.Hash(0), payload)
+		case "pss":
+			sig, err = rsa.SignPSS(rand.Reader, priv, stdcrypto.SHA256, digest, nil)
+		default:
+			sig, err = rsa.SignPKCS1v15(rand.Reader, priv, stdcrypto.SHA256, digest)
+		}
 		if err != nil {
 			return OperationResult{}, err
 		}
@@ -186,9 +220,24 @@ func (c *CryptoService) runRSAOperation(req AsymmetricRequest) (OperationResult,
 		if err != nil {
 			return OperationResult{}, err
 		}
-		digest := sha256.Sum256(payload)
-		if err := rsa.VerifyPSS(pubKey, stdcrypto.SHA256, digest[:], signature, nil); err != nil {
-			return OperationResult{Verified: false}, nil
+		digest := payload
+		if padding != "none" && !payloadIsHash {
+			sum := sha256.Sum256(payload)
+			digest = sum[:]
+		}
+		switch padding {
+		case "none":
+			if err := rsa.VerifyPKCS1v15(pubKey, stdcrypto.Hash(0), payload, signature); err != nil {
+				return OperationResult{Verified: false}, nil
+			}
+		case "pss":
+			if err := rsa.VerifyPSS(pubKey, stdcrypto.SHA256, digest, signature, nil); err != nil {
+				return OperationResult{Verified: false}, nil
+			}
+		default:
+			if err := rsa.VerifyPKCS1v15(pubKey, stdcrypto.SHA256, digest, signature); err != nil {
+				return OperationResult{Verified: false}, nil
+			}
 		}
 		return OperationResult{Verified: true}, nil
 	default:
@@ -210,6 +259,7 @@ func (c *CryptoService) runECCOperation(req AsymmetricRequest) (OperationResult,
 	if err != nil {
 		return OperationResult{}, err
 	}
+	payloadIsHash := req.PayloadIsHash
 	outputFormat := normalizeOutputFormat(req.OutputFormat)
 
 	switch op {
@@ -256,8 +306,12 @@ func (c *CryptoService) runECCOperation(req AsymmetricRequest) (OperationResult,
 		if err != nil {
 			return OperationResult{}, err
 		}
-		hashBytes := sha256.Sum256(payload)
-		sig, err := ecdsa.SignASN1(rand.Reader, priv, hashBytes[:])
+		digest := payload
+		if !payloadIsHash {
+			sum := sha256.Sum256(payload)
+			digest = sum[:]
+		}
+		sig, err := ecdsa.SignASN1(rand.Reader, priv, digest)
 		if err != nil {
 			return OperationResult{}, err
 		}
@@ -272,12 +326,16 @@ func (c *CryptoService) runECCOperation(req AsymmetricRequest) (OperationResult,
 		if err != nil {
 			return OperationResult{}, err
 		}
-		hashBytes := sha256.Sum256(payload)
+		digest := payload
+		if !payloadIsHash {
+			sum := sha256.Sum256(payload)
+			digest = sum[:]
+		}
 		signature, err := decodeBlob(req.Signature, req.SignatureFmt)
 		if err != nil {
 			return OperationResult{}, err
 		}
-		ok := ecdsa.VerifyASN1(pub, hashBytes[:], signature)
+		ok := ecdsa.VerifyASN1(pub, digest, signature)
 		return OperationResult{Verified: ok}, nil
 	default:
 		return OperationResult{}, fmt.Errorf("unsupported ECC operation: %s", req.Operation)
@@ -294,6 +352,7 @@ func (c *CryptoService) runSM2Operation(req AsymmetricRequest) (OperationResult,
 	if err != nil {
 		return OperationResult{}, err
 	}
+	payloadIsHash := req.PayloadIsHash
 	outputFormat := normalizeOutputFormat(req.OutputFormat)
 
 	switch op {
@@ -337,8 +396,13 @@ func (c *CryptoService) runSM2Operation(req AsymmetricRequest) (OperationResult,
 		if len(uid) == 0 {
 			uid = []byte("1234567812345678")
 		}
-		opts := sm2.NewSM2SignerOption(true, uid)
-		sig, err := priv.Sign(rand.Reader, payload, opts)
+		var sig []byte
+		if payloadIsHash {
+			sig, err = priv.Sign(rand.Reader, payload, nil)
+		} else {
+			opts := sm2.NewSM2SignerOption(true, uid)
+			sig, err = priv.Sign(rand.Reader, payload, opts)
+		}
 		if err != nil {
 			return OperationResult{}, err
 		}
@@ -357,11 +421,16 @@ func (c *CryptoService) runSM2Operation(req AsymmetricRequest) (OperationResult,
 		if err != nil {
 			return OperationResult{}, err
 		}
-		uid := []byte(req.UID)
-		if len(uid) == 0 {
-			uid = []byte("1234567812345678")
+		var ok bool
+		if payloadIsHash {
+			ok = sm2.VerifyASN1(pub, payload, signature)
+		} else {
+			uid := []byte(req.UID)
+			if len(uid) == 0 {
+				uid = []byte("1234567812345678")
+			}
+			ok = sm2.VerifyASN1WithSM2(pub, uid, payload, signature)
 		}
-		ok := sm2.VerifyASN1WithSM2(pub, uid, payload, signature)
 		return OperationResult{Verified: ok}, nil
 	default:
 		return OperationResult{}, fmt.Errorf("unsupported SM2 operation: %s", req.Operation)
@@ -398,6 +467,7 @@ func (c *CryptoService) runSM9Operation(req AsymmetricRequest) (OperationResult,
 }
 
 func (c *CryptoService) handleSM9Signature(mat keyMaterial, op string, uid, payload []byte, req AsymmetricRequest, outputFormat string) (OperationResult, error) {
+	payloadIsHash := req.PayloadIsHash
 	switch op {
 	case "sign":
 		if mat.stored.KeyType != "sign-user" {
@@ -407,8 +477,12 @@ func (c *CryptoService) handleSM9Signature(mat keyMaterial, op string, uid, payl
 		if err != nil {
 			return OperationResult{}, err
 		}
-		digest := sha512.Sum512(payload)
-		sig, err := sm9.SignASN1(rand.Reader, priv, digest[:])
+		digest := payload
+		if !payloadIsHash {
+			sum := sha512.Sum512(payload)
+			digest = sum[:]
+		}
+		sig, err := sm9.SignASN1(rand.Reader, priv, digest)
 		if err != nil {
 			return OperationResult{}, err
 		}
@@ -427,8 +501,12 @@ func (c *CryptoService) handleSM9Signature(mat keyMaterial, op string, uid, payl
 		if err != nil {
 			return OperationResult{}, err
 		}
-		digest := sha512.Sum512(payload)
-		ok := sm9.VerifyASN1(pub, uid, 0x01, digest[:], sig)
+		digest := payload
+		if !payloadIsHash {
+			sum := sha512.Sum512(payload)
+			digest = sum[:]
+		}
+		ok := sm9.VerifyASN1(pub, uid, 0x01, digest, sig)
 		return OperationResult{Verified: ok}, nil
 	default:
 		return OperationResult{}, fmt.Errorf("unsupported SM9 signature operation: %s", op)
@@ -1079,6 +1157,45 @@ func encryptRSAOAEP(pub *rsa.PublicKey, msg, label []byte, hashAlg, mgfHash stdc
 	result := make([]byte, k)
 	copy(result[k-len(out):], out)
 	return result, nil
+}
+
+func rsaRawEncrypt(pub *rsa.PublicKey, msg []byte) ([]byte, error) {
+	k := (pub.N.BitLen() + 7) / 8
+	if len(msg) > k {
+		return nil, errors.New("message too long for raw RSA")
+	}
+	m := new(big.Int).SetBytes(msg)
+	if m.Cmp(pub.N) >= 0 {
+		return nil, errors.New("message representative out of range")
+	}
+	e := big.NewInt(int64(pub.E))
+	c := new(big.Int).Exp(m, e, pub.N)
+	out := c.Bytes()
+	if len(out) == k {
+		return out, nil
+	}
+	padded := make([]byte, k)
+	copy(padded[k-len(out):], out)
+	return padded, nil
+}
+
+func rsaRawDecrypt(priv *rsa.PrivateKey, cipherText []byte) ([]byte, error) {
+	k := (priv.N.BitLen() + 7) / 8
+	if len(cipherText) > k {
+		return nil, errors.New("ciphertext too long for raw RSA")
+	}
+	c := new(big.Int).SetBytes(cipherText)
+	if c.Cmp(priv.N) >= 0 {
+		return nil, errors.New("ciphertext representative out of range")
+	}
+	m := new(big.Int).Exp(c, priv.D, priv.N)
+	out := m.Bytes()
+	if len(out) == k {
+		return out, nil
+	}
+	padded := make([]byte, k)
+	copy(padded[k-len(out):], out)
+	return padded, nil
 }
 
 func mgf1XOR(out []byte, seed []byte, h hash.Hash) error {

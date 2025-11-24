@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
+    "mermaid": "^11.12.1",
     "vue": "^3.2.37",
     "vue-router": "^4.6.3"
   },

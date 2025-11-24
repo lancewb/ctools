@@ -48,7 +48,8 @@ export const menuData = [
         color: 'light-blue-darken-3',
         children: [
             { id: 'socks', title: 'SOCKS5 代理服务', icon: 'mdi-access-point' },
-            { id: 'gmssl', title: '国密 SSL 检测', icon: 'mdi-shield-lock' }
+            { id: 'gmssl', title: '国密 SSL 检测', icon: 'mdi-shield-lock' },
+            { id: 'mermaid', title: 'Mermaid 绘图', icon: 'mdi-image-outline' }
         ]
     }
 ];

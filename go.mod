@@ -6,6 +6,7 @@ toolchain go1.24.10
 
 require (
 	gitee.com/Trisia/gotlcp v1.4.3
+	github.com/ProtonMail/go-crypto v1.1.5
 	github.com/emmansun/gmsm v0.40.0
 	github.com/go-ping/ping v1.2.0
 	github.com/google/uuid v1.6.0

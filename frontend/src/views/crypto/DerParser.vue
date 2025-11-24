@@ -83,10 +83,15 @@ let nodeCounter = 0
  */
 const buildNode = (node) => {
   const id = ++nodeCounter
+  const label = node.label || `Tag ${node.tag} (${node.class})`
+  const infoParts = [`len=${node.length}`, node.class]
+  if (node.value) {
+    infoParts.push(node.value)
+  }
   return {
     id,
-    label: `Tag ${node.tag} (${node.class})`,
-    info: `len=${node.length}`,
+    label,
+    info: infoParts.join(' | '),
     constructed: node.constructed,
     children: (node.children || []).map(buildNode)
   }

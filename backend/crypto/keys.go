@@ -2,7 +2,6 @@ package crypto
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -11,6 +10,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -152,10 +152,12 @@ func (c *CryptoService) parseECCKey(req KeyParseRequest) (KeyParseResult, error)
 	}
 
 	var privPEM, pubPEM string
+	var privDER []byte
 	if priv != nil {
-		derPriv, err := x509.MarshalECPrivateKey(priv)
+		var err error
+		privDER, err = x509.MarshalECPrivateKey(priv)
 		if err == nil {
-			privPEM = string(pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: derPriv}))
+			privPEM = string(pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privDER}))
 		}
 		pubBytes, _ := x509.MarshalPKIXPublicKey(priv.Public())
 		pubPEM = string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubBytes}))
@@ -168,6 +170,17 @@ func (c *CryptoService) parseECCKey(req KeyParseRequest) (KeyParseResult, error)
 
 	if pub != nil {
 		result.Summary["curve"] = pub.Curve.Params().Name
+		if info, ok := describeCurveByParamsName(pub.Curve.Params().Name); ok {
+			result.Summary["curve"] = info.Display
+			result.Summary["curveFamily"] = info.Family
+		}
+		result.Summary["publicRS"] = strings.ToUpper(hex.EncodeToString(encodeECCPointRS(pub)))
+		pubBytes, _ := x509.MarshalPKIXPublicKey(pub)
+		result.Summary["publicDerHex"] = strings.ToUpper(hex.EncodeToString(pubBytes))
+	}
+
+	if len(privDER) > 0 {
+		result.Summary["privateDerHex"] = strings.ToUpper(hex.EncodeToString(privDER))
 	}
 
 	result.PrivatePEM = privPEM
@@ -262,8 +275,10 @@ func (c *CryptoService) parseSM2Key(req KeyParseRequest) (KeyParseResult, error)
 	}
 
 	var privPEM, pubPEM string
+	var privDER []byte
 	if priv != nil {
 		if der, err := smx509.MarshalSM2PrivateKey(priv); err == nil {
+			privDER = der
 			privPEM = string(pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: der}))
 		}
 		pubBytes, _ := smx509.MarshalPKIXPublicKey(priv.Public())
@@ -277,6 +292,12 @@ func (c *CryptoService) parseSM2Key(req KeyParseRequest) (KeyParseResult, error)
 
 	if pub != nil {
 		result.Summary["curve"] = pub.Curve.Params().Name
+		result.Summary["publicRS"] = strings.ToUpper(hex.EncodeToString(encodeECCPointRS(pub)))
+		pubBytes, _ := smx509.MarshalPKIXPublicKey(pub)
+		result.Summary["publicDerHex"] = strings.ToUpper(hex.EncodeToString(pubBytes))
+	}
+	if len(privDER) > 0 {
+		result.Summary["privateDerHex"] = strings.ToUpper(hex.EncodeToString(privDER))
 	}
 
 	result.PrivatePEM = privPEM
@@ -411,7 +432,11 @@ func (c *CryptoService) generateRSA(req KeyGenRequest) (KeyParseResult, error) {
 	if bits == 0 {
 		bits = 2048
 	}
-	key, err := rsa.GenerateKey(rand.Reader, bits)
+	exponent := req.PublicExponent
+	if exponent == 0 {
+		exponent = 65537
+	}
+	key, err := generateRSAWithExponent(bits, exponent)
 	if err != nil {
 		return KeyParseResult{}, err
 	}
@@ -445,20 +470,63 @@ func (c *CryptoService) generateRSA(req KeyGenRequest) (KeyParseResult, error) {
 	return result, nil
 }
 
+func generateRSAWithExponent(bits, exponent int) (*rsa.PrivateKey, error) {
+	if exponent != 3 && exponent != 65537 {
+		return nil, fmt.Errorf("unsupported RSA public exponent: %d", exponent)
+	}
+	if bits < 512 {
+		return nil, errors.New("RSA key size must be at least 512 bits")
+	}
+	e := big.NewInt(int64(exponent))
+	for {
+		primes := make([]*big.Int, 2)
+		for i := range primes {
+			prime, err := rand.Prime(rand.Reader, bits/2)
+			if err != nil {
+				return nil, err
+			}
+			primes[i] = prime
+		}
+		if primes[0].Cmp(primes[1]) == 0 {
+			continue
+		}
+		n := new(big.Int).Mul(primes[0], primes[1])
+		if n.BitLen() != bits {
+			continue
+		}
+		phi := new(big.Int).Mul(
+			new(big.Int).Sub(primes[0], big.NewInt(1)),
+			new(big.Int).Sub(primes[1], big.NewInt(1)),
+		)
+		if new(big.Int).GCD(nil, nil, e, phi).Cmp(big.NewInt(1)) != 0 {
+			continue
+		}
+		d := new(big.Int).ModInverse(e, phi)
+		if d == nil {
+			continue
+		}
+		priv := &rsa.PrivateKey{
+			PublicKey: rsa.PublicKey{
+				N: n,
+				E: exponent,
+			},
+			D:      d,
+			Primes: primes,
+		}
+		if err := priv.Validate(); err != nil {
+			continue
+		}
+		priv.Precompute()
+		return priv, nil
+	}
+}
+
 func (c *CryptoService) generateECC(req KeyGenRequest) (KeyParseResult, error) {
-	curve := strings.ToUpper(req.Curve)
-	if curve == "" {
-		curve = "P256"
+	info, err := resolveECCurve(req.Curve)
+	if err != nil {
+		return KeyParseResult{}, err
 	}
-	curveVal := elliptic.P256()
-	switch curve {
-	case "P256", "SECP256R1":
-		curveVal = elliptic.P256()
-	case "P384":
-		curveVal = elliptic.P384()
-	case "P521":
-		curveVal = elliptic.P521()
-	}
+	curveVal := info.Curve
 	key, err := ecdsa.GenerateKey(curveVal, rand.Reader)
 	if err != nil {
 		return KeyParseResult{}, err
@@ -474,8 +542,9 @@ func (c *CryptoService) generateECC(req KeyGenRequest) (KeyParseResult, error) {
 		PrivatePEM: string(privPEM),
 		PublicPEM:  string(pubPEM),
 		Summary: map[string]string{
-			"type":  "private",
-			"curve": curveVal.Params().Name,
+			"type":        "private",
+			"curve":       info.Display,
+			"curveFamily": info.Family,
 		},
 	}
 	if req.Save {
@@ -489,7 +558,8 @@ func (c *CryptoService) generateECC(req KeyGenRequest) (KeyParseResult, error) {
 			PrivatePEM: string(privPEM),
 			PublicPEM:  string(pubPEM),
 			Extra: map[string]string{
-				"curve": curveVal.Params().Name,
+				"curve":       info.Display,
+				"curveFamily": info.Family,
 			},
 			CreatedAt: time.Now(),
 		})
@@ -590,6 +660,17 @@ func (c *CryptoService) generateSM9(req KeyGenRequest) (KeyParseResult, error) {
 		result.Key = &stored
 	}
 	return result, nil
+}
+
+func encodeECCPointRS(pub *ecdsa.PublicKey) []byte {
+	if pub == nil || pub.Curve == nil {
+		return nil
+	}
+	byteLen := (pub.Curve.Params().BitSize + 7) / 8
+	rs := make([]byte, byteLen*2)
+	pub.X.FillBytes(rs[:byteLen])
+	pub.Y.FillBytes(rs[byteLen:])
+	return rs
 }
 
 func fallbackName(name, prefix string) string {

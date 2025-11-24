@@ -1,5 +1,7 @@
 gitee.com/Trisia/gotlcp v1.4.3 h1:G0ufFMYd/pV6d+r2yccP0l3YzTLA6rgJpY8AZIexjsA=
 gitee.com/Trisia/gotlcp v1.4.3/go.mod h1:TTMphDQr7w1jkE66hRdiUwytGOMqMwopZ+fkUhwMETM=
+github.com/ProtonMail/go-crypto v1.1.5 h1:eoAQfK2dwL+tFSFpr7TbOaPNUbPiJj4fLYwwGE1FQO4=
+github.com/ProtonMail/go-crypto v1.1.5/go.mod h1:rA3QumHc/FZ8pAHreoekgiAbzpNsfQAosU5td4SnOrE=
 github.com/bep/debounce v1.2.1 h1:v67fRdBA9UQu2NhLFXrSg0Brw7CexQekrBwDMM8bzeY=
 github.com/bep/debounce v1.2.1/go.mod h1:H8yggRPQKLUhUoqrJC1bO2xNya7vanpDl7xR3ISbCJ0=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

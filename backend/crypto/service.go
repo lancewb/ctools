@@ -71,20 +71,22 @@ type KeyParseResult struct {
 
 // KeyGenRequest defines the parameters for generating a new key pair.
 type KeyGenRequest struct {
-	Name      string   `json:"name"`
-	Algorithm string   `json:"algorithm"`
-	KeySize   int      `json:"keySize"`
-	Curve     string   `json:"curve"`
-	Usage     []string `json:"usage"`
-	Variant   string   `json:"variant"` // For SM9
-	Save      bool     `json:"save"`
-	UID       string   `json:"uid"` // For SM2/SM9 identity
+	Name           string   `json:"name"`
+	Algorithm      string   `json:"algorithm"`
+	KeySize        int      `json:"keySize"`
+	Curve          string   `json:"curve"`
+	PublicExponent int      `json:"publicExponent"`
+	Usage          []string `json:"usage"`
+	Variant        string   `json:"variant"` // For SM9
+	Save           bool     `json:"save"`
+	UID            string   `json:"uid"` // For SM2/SM9 identity
 }
 
 // AsymmetricRequest defines the parameters for asymmetric crypto operations.
 type AsymmetricRequest struct {
 	Algorithm       string `json:"algorithm"` // RSA, ECC, SM2, SM9
 	Operation       string `json:"operation"` // encrypt, decrypt, sign, verify
+	PayloadIsHash   bool   `json:"payloadIsHash"`
 	KeyID           string `json:"keyId"`
 	PeerKeyID       string `json:"peerKeyId"`
 	KeyData         string `json:"keyData"`
@@ -213,8 +215,10 @@ type DerParseRequest struct {
 type DerNode struct {
 	Tag         int       `json:"tag"`
 	Class       string    `json:"class"`
+	Label       string    `json:"label,omitempty"`
 	Constructed bool      `json:"constructed"`
 	Length      int       `json:"length"`
+	Value       string    `json:"value,omitempty"`
 	Hex         string    `json:"hex"`
 	Children    []DerNode `json:"children,omitempty"`
 }

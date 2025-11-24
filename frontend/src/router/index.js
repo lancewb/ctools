@@ -23,6 +23,7 @@ import QuantumPlaceholder from '../views/crypto/QuantumPlaceholder.vue'
 // 其他工具
 import SocksProxy from '../views/other/SocksProxy.vue'
 import GMSSLTester from '../views/other/GMSSLTester.vue'
+import MermaidWorkbench from '../views/other/MermaidWorkbench.vue'
 
 const routes = [
     {
@@ -128,6 +129,11 @@ const routes = [
         path: '/tool/other/gmssl',
         name: 'GMSSLTester',
         component: GMSSLTester
+    },
+    {
+        path: '/tool/other/mermaid',
+        name: 'MermaidWorkbench',
+        component: MermaidWorkbench
     },
     {
         path: '/tool/:catId/:id',
