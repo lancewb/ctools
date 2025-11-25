@@ -49,7 +49,8 @@ export const menuData = [
         children: [
             { id: 'socks', title: 'SOCKS5 代理服务', icon: 'mdi-access-point' },
             { id: 'gmssl', title: '国密 SSL 检测', icon: 'mdi-shield-lock' },
-            { id: 'mermaid', title: 'Mermaid 绘图', icon: 'mdi-image-outline' }
+            { id: 'mermaid', title: 'Mermaid 绘图', icon: 'mdi-image-outline' },
+            { id: 'plantuml', title: 'PlantUML 绘图', icon: 'mdi-application-brackets-outline' }
         ]
     }
 ];

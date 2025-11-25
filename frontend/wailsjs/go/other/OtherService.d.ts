@@ -5,6 +5,8 @@ import {context} from '../models';
 
 export function GMSSLServerStatus():Promise<other.GMSSLServerStatus>;
 
+export function RenderPlantUML(arg1:other.PlantUMLRenderRequest):Promise<other.PlantUMLRenderResponse>;
+
 export function RunGMSSLClientTest(arg1:other.GMSSLClientConfig):Promise<other.GMSSLClientResult>;
 
 export function SetContext(arg1:context.Context):Promise<void>;

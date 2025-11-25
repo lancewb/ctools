@@ -24,6 +24,7 @@ import QuantumPlaceholder from '../views/crypto/QuantumPlaceholder.vue'
 import SocksProxy from '../views/other/SocksProxy.vue'
 import GMSSLTester from '../views/other/GMSSLTester.vue'
 import MermaidWorkbench from '../views/other/MermaidWorkbench.vue'
+import PlantUMLWorkbench from '../views/other/PlantUMLWorkbench.vue'
 
 const routes = [
     {
@@ -134,6 +135,11 @@ const routes = [
         path: '/tool/other/mermaid',
         name: 'MermaidWorkbench',
         component: MermaidWorkbench
+    },
+    {
+        path: '/tool/other/plantuml',
+        name: 'PlantUMLWorkbench',
+        component: PlantUMLWorkbench
     },
     {
         path: '/tool/:catId/:id',

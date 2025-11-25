@@ -1,7 +1,12 @@
 <template>
-  <v-container fluid>
+  <v-container fluid class="mermaid-workbench">
     <v-row>
-      <v-col cols="12" md="5">
+      <v-col
+        v-show="!previewExpanded"
+        cols="12"
+        :md="previewExpanded ? 12 : 5"
+        class="mb-4"
+      >
         <v-card>
           <v-card-title class="text-subtitle-1 font-weight-bold">
             Mermaid 绘图
@@ -52,6 +57,23 @@
                 />
               </v-col>
             </v-row>
+            <v-expand-transition>
+              <div v-if="theme === 'custom'" class="custom-theme-editor">
+                <v-textarea
+                  v-model="customThemeJson"
+                  label="自定义主题 (JSON)"
+                  rows="6"
+                  auto-grow
+                  density="comfortable"
+                  persistent-hint
+                  :error="!!customThemeError"
+                  :hint="customThemeError || '仅需要提供 themeVariables 对象，支持 mermaid 官方主题变量'"
+                />
+                <div class="text-caption text-medium-emphasis">
+                  例如：{"primaryColor":"#0f62fe","primaryTextColor":"#ffffff","lineColor":"#0f62fe"}
+                </div>
+              </div>
+            </v-expand-transition>
             <div class="text-body-2 font-weight-medium mb-1 mt-4">
               快速模板
             </div>
@@ -111,9 +133,12 @@
           </v-card-actions>
         </v-card>
       </v-col>
-      <v-col cols="12" md="7">
-        <v-card class="h-100">
-          <v-card-title class="text-subtitle-1 font-weight-bold d-flex align-center">
+      <v-col
+        cols="12"
+        :md="previewExpanded ? 12 : 7"
+      >
+        <v-card class="h-100 preview-card">
+          <v-card-title class="text-subtitle-1 font-weight-bold d-flex align-center flex-wrap">
             实时预览
             <v-chip
               v-if="lastRenderTime"
@@ -125,27 +150,62 @@
               {{ lastRenderTime }}
             </v-chip>
             <v-spacer />
-            <v-btn
-              size="small"
-              variant="text"
-              prepend-icon="mdi-download"
-              :disabled="!renderedSvg"
-              :loading="exportingSvg"
-              @click="exportSvg"
-            >
-              导出 SVG
-            </v-btn>
-            <v-btn
-              size="small"
-              class="ml-1"
-              variant="text"
-              prepend-icon="mdi-image"
-              :disabled="!renderedSvg"
-              :loading="exportingPng"
-              @click="exportPng"
-            >
-              导出 PNG
-            </v-btn>
+            <div class="preview-action-group d-flex align-center flex-wrap">
+              <v-btn
+                size="small"
+                variant="text"
+                prepend-icon="mdi-download"
+                :disabled="!renderedSvg"
+                :loading="exportingSvg"
+                @click="exportSvg"
+              >
+                导出 SVG
+              </v-btn>
+              <v-btn
+                size="small"
+                class="ml-1"
+                variant="text"
+                prepend-icon="mdi-image"
+                :disabled="!renderedSvg"
+                :loading="exportingPng"
+                @click="exportPng"
+              >
+                导出 PNG
+              </v-btn>
+              <div class="preview-zoom-controls d-flex align-center ml-3">
+                <v-btn
+                  icon="mdi-magnify-minus-outline"
+                  size="small"
+                  variant="text"
+                  :disabled="previewScale <= minScale"
+                  @click="zoomOut"
+                />
+                <div class="preview-scale-display text-caption font-weight-medium mx-2">
+                  {{ previewScaleDisplay }}%
+                </div>
+                <v-btn
+                  icon="mdi-magnify-plus-outline"
+                  size="small"
+                  variant="text"
+                  :disabled="previewScale >= maxScale"
+                  @click="zoomIn"
+                />
+                <v-btn
+                  icon="mdi-fit-to-page-outline"
+                  size="small"
+                  variant="text"
+                  class="ml-1"
+                  @click="resetZoom"
+                />
+                <v-btn
+                  :icon="previewExpanded ? 'mdi-fullscreen-exit' : 'mdi-fullscreen'"
+                  size="small"
+                  variant="text"
+                  class="ml-1"
+                  @click="togglePreviewExpand"
+                />
+              </div>
+            </div>
           </v-card-title>
           <v-card-text class="preview-wrapper">
             <div
@@ -157,8 +217,13 @@
             <div
               v-else-if="renderedSvg"
               class="preview-surface"
-              v-html="renderedSvg"
-            />
+            >
+              <div
+                class="preview-canvas"
+                :style="previewCanvasStyle"
+                v-html="renderedSvg"
+              />
+            </div>
             <div v-else class="text-medium-emphasis text-body-2">
               输入 Mermaid 语句以开始渲染。
             </div>
@@ -176,7 +241,7 @@
  * 提供 Mermaid 文本编辑、实时预览与导出 PNG/SVG 功能。
  */
 
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 import mermaid from 'mermaid'
 
 const defaultDiagram = `%% 示例流程图
@@ -187,24 +252,51 @@ graph TD
     Action1 --> Done[完成]
     Action2 --> Done`
 
+const defaultCustomTheme = JSON.stringify(
+  {
+    primaryColor: '#0f62fe',
+    primaryTextColor: '#ffffff',
+    primaryBorderColor: '#0f62fe',
+    lineColor: '#0f62fe',
+    fontSize: '14px',
+    noteBkgColor: '#edf2ff',
+    noteTextColor: '#1f2933'
+  },
+  null,
+  2
+)
+
+const storageKeys = {
+  diagram: 'mermaid-last',
+  settings: 'mermaid-workbench-settings'
+}
+
+const minScale = 0.5
+const maxScale = 3
+
 const diagramSource = ref(defaultDiagram)
 const renderedSvg = ref('')
 const renderError = ref('')
 const rendering = ref(false)
 const autoRender = ref(true)
 const theme = ref('default')
+const customThemeJson = ref(defaultCustomTheme)
+const customThemeError = ref('')
 const pngScale = ref(2)
 const pngBackground = ref('#ffffff')
 const exportingSvg = ref(false)
 const exportingPng = ref(false)
 const lastRenderTime = ref('')
+const previewScale = ref(1)
+const previewExpanded = ref(false)
 let debounceId
 
 const themeOptions = [
   { title: '默认', value: 'default' },
   { title: '暗色', value: 'dark' },
   { title: '森林', value: 'forest' },
-  { title: '中性', value: 'neutral' }
+  { title: '中性', value: 'neutral' },
+  { title: '自定义', value: 'custom' }
 ]
 
 const templates = [
@@ -239,6 +331,14 @@ const templates = [
   }
 ]
 
+const previewCanvasStyle = computed(() => ({
+  transform: `scale(${previewScale.value})`,
+  transformOrigin: 'top left',
+  width: `${(1 / previewScale.value) * 100}%`
+}))
+
+const previewScaleDisplay = computed(() => Math.round(previewScale.value * 100))
+
 const applyTemplate = (code) => {
   diagramSource.value = code
 }
@@ -250,29 +350,98 @@ const reset = () => {
 
 const saveLocal = () => {
   try {
-    localStorage.setItem('mermaid-last', diagramSource.value)
+    localStorage.setItem(storageKeys.diagram, diagramSource.value)
   } catch (err) {
     console.warn('无法保存 Mermaid 草稿', err)
   }
 }
 
+const clampScale = (value) => {
+  if (Number.isNaN(Number(value))) {
+    return 1
+  }
+  return Math.min(maxScale, Math.max(minScale, Number(value)))
+}
+
 const loadLocal = () => {
   try {
-    const cached = localStorage.getItem('mermaid-last')
+    const cached = localStorage.getItem(storageKeys.diagram)
     if (cached) {
       diagramSource.value = cached
+    }
+    const rawSettings = localStorage.getItem(storageKeys.settings)
+    if (rawSettings) {
+      const parsed = JSON.parse(rawSettings)
+      if (typeof parsed.theme === 'string') {
+        theme.value = parsed.theme
+      }
+      if (typeof parsed.customTheme === 'string') {
+        customThemeJson.value = parsed.customTheme
+      }
+      if (typeof parsed.autoRender === 'boolean') {
+        autoRender.value = parsed.autoRender
+      }
+      if (typeof parsed.previewScale === 'number') {
+        previewScale.value = clampScale(parsed.previewScale)
+      }
+      if (typeof parsed.previewExpanded === 'boolean') {
+        previewExpanded.value = parsed.previewExpanded
+      }
+      if (typeof parsed.pngScale === 'number' && !Number.isNaN(parsed.pngScale)) {
+        pngScale.value = parsed.pngScale
+      }
+      if (typeof parsed.pngBackground === 'string') {
+        pngBackground.value = parsed.pngBackground
+      }
     }
   } catch (err) {
     console.warn('无法读取 Mermaid 草稿', err)
   }
 }
 
+const persistSettings = () => {
+  try {
+    const payload = {
+      theme: theme.value,
+      customTheme: customThemeJson.value,
+      autoRender: autoRender.value,
+      previewScale: previewScale.value,
+      previewExpanded: previewExpanded.value,
+      pngScale: pngScale.value,
+      pngBackground: pngBackground.value
+    }
+    localStorage.setItem(storageKeys.settings, JSON.stringify(payload))
+  } catch (err) {
+    console.warn('无法保存 Mermaid 设置', err)
+  }
+}
+
 const configureMermaid = () => {
-  mermaid.initialize({
+  const config = {
     startOnLoad: false,
     securityLevel: 'loose',
     theme: theme.value
-  })
+  }
+  if (theme.value === 'custom') {
+    try {
+      const payload = customThemeJson.value?.trim()
+        ? JSON.parse(customThemeJson.value)
+        : {}
+      if (typeof payload !== 'object' || Array.isArray(payload)) {
+        throw new Error('自定义主题必须是对象')
+      }
+      config.theme = typeof payload.theme === 'string' ? payload.theme : 'base'
+      config.themeVariables = payload.themeVariables ?? payload
+      customThemeError.value = ''
+    } catch (err) {
+      customThemeError.value = err?.message ?? '自定义主题解析失败'
+      config.theme = 'default'
+      delete config.themeVariables
+    }
+  } else {
+    customThemeError.value = ''
+  }
+  mermaid.initialize(config)
 }
 
 const renderDiagram = async () => {
@@ -332,7 +501,11 @@ const exportPng = async () => {
   }
   exportingPng.value = true
   try {
-    const pngBlob = await svgToPng(renderedSvg.value, pngScale.value, pngBackground.value)
+    const pngBlob = await svgToPng(
+      renderedSvg.value,
+      pngScale.value,
+      pngBackground.value
+    )
     triggerDownload(pngBlob, `mermaid-${Date.now()}.png`)
   } catch (err) {
     renderError.value = err?.message ?? String(err)
@@ -406,8 +579,27 @@ const measureSvg = (svgString, fallbackImage) => {
     }
     return { width, height }
   } catch (err) {
-    return { width: fallbackImage?.width || 800, height: fallbackImage?.height || 600 }
+    return {
+      width: fallbackImage?.width || 800,
+      height: fallbackImage?.height || 600
+    }
   }
+}
+
+const zoomIn = () => {
+  previewScale.value = clampScale(previewScale.value + 0.15)
+}
+
+const zoomOut = () => {
+  previewScale.value = clampScale(previewScale.value - 0.15)
+}
+
+const resetZoom = () => {
+  previewScale.value = 1
+}
+
+const togglePreviewExpand = () => {
+  previewExpanded.value = !previewExpanded.value
 }
 
 watch(diagramSource, () => {
@@ -422,11 +614,26 @@ watch(theme, () => {
   renderDiagram()
 })
 
+watch(customThemeJson, () => {
+  if (theme.value !== 'custom') {
+    return
+  }
+  configureMermaid()
+  debounceRender()
+})
+
 watch(autoRender, (enabled) => {
   if (enabled) {
     debounceRender()
   }
 })
+
+watch(
+  [theme, autoRender, customThemeJson, previewScale, previewExpanded, pngScale, pngBackground],
+  () => {
+    persistSettings()
+  }
+)
 
 onMounted(() => {
   configureMermaid()
@@ -440,8 +647,18 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.mermaid-workbench {
+  min-height: calc(100vh - 120px);
+}
+
+.preview-card {
+  min-height: calc(100vh - 180px);
+}
+
 .preview-wrapper {
-  min-height: 420px;
+  min-height: 480px;
+  height: calc(100vh - 260px);
+  overflow: hidden;
 }
 
 .preview-surface {
@@ -449,11 +666,33 @@ onUnmounted(() => {
   border-radius: 12px;
   padding: 12px;
   overflow: auto;
-  max-height: 600px;
+  height: 100%;
 }
 
-.preview-surface :deep(svg) {
+.preview-canvas {
+  transform-origin: top left;
+  display: inline-block;
+  min-width: 100%;
+}
+
+.preview-canvas :deep(svg) {
   width: 100%;
   height: auto;
+}
+
+.preview-zoom-controls .v-btn {
+  min-width: 32px;
+}
+
+.preview-scale-display {
+  width: 48px;
+  text-align: center;
+}
+
+.custom-theme-editor {
+  background-color: rgba(0, 0, 0, 0.02);
+  border-radius: 12px;
+  padding: 8px 12px 4px;
+  margin-bottom: 8px;
 }
 </style>

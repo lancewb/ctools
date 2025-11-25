@@ -6,6 +6,10 @@ export function GMSSLServerStatus() {
   return window['go']['other']['OtherService']['GMSSLServerStatus']();
 }
 
+export function RenderPlantUML(arg1) {
+  return window['go']['other']['OtherService']['RenderPlantUML'](arg1);
+}
+
 export function RunGMSSLClientTest(arg1) {
   return window['go']['other']['OtherService']['RunGMSSLClientTest'](arg1);
 }

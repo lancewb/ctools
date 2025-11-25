@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
@@ -706,14 +707,14 @@ func extractPEMOrDER(data, format string) (*pem.Block, []byte, error) {
 	body := []byte(data)
 	block, rest := pem.Decode(body)
 	if block != nil {
+		if len(bytes.TrimSpace(rest)) > 0 {
+			return nil, nil, errors.New("unexpected data after pem block")
+		}
 		return block, block.Bytes, nil
 	}
 	der, err := decodeData(format, data)
 	if err != nil {
 		return nil, nil, err
-	}
-	if len(rest) > 0 {
-		return nil, nil, errors.New("unexpected data after pem block")
 	}
 	return nil, der, nil
 }

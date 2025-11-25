@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -30,9 +31,10 @@ func (c *CryptoService) SetContext(ctx context.Context) {
 }
 
 const (
-	keyStoreFile  = "crypto_keys.json"
-	certStoreFile = "crypto_certs.json"
-	caStoreFile   = "crypto_ca.json"
+	configDirOverrideEnv = "CTOOLS_CONFIG_DIR"
+	keyStoreFile         = "crypto_keys.json"
+	certStoreFile        = "crypto_certs.json"
+	caStoreFile          = "crypto_ca.json"
 )
 
 // StoredKey represents a cryptographic key persisted in storage.
@@ -230,6 +232,10 @@ type DerParseResult struct {
 
 // ensureDataDir creates and returns the application data directory.
 func (c *CryptoService) ensureDataDir() string {
+	if override := strings.TrimSpace(os.Getenv(configDirOverrideEnv)); override != "" {
+		_ = os.MkdirAll(override, 0o755)
+		return override
+	}
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return "."
@@ -268,8 +274,14 @@ func (c *CryptoService) readKeys() []StoredKey {
 
 // writeKeys writes the list of keys to the file system.
 func (c *CryptoService) writeKeys(keys []StoredKey) {
-	data, _ := json.MarshalIndent(keys, "", "  ")
-	_ = os.WriteFile(c.keyStorePath(), data, 0644)
+	data, err := json.MarshalIndent(keys, "", "  ")
+	if err != nil {
+		log.Printf("crypto: unable to marshal key store: %v", err)
+		return
+	}
+	if err := os.WriteFile(c.keyStorePath(), data, 0600); err != nil {
+		log.Printf("crypto: unable to persist key store: %v", err)
+	}
 }
 
 // readCerts reads the list of stored certificates from the file system.
@@ -286,8 +298,14 @@ func (c *CryptoService) readCerts() []CertRecord {
 
 // writeCerts writes the list of certificates to the file system.
 func (c *CryptoService) writeCerts(certs []CertRecord) {
-	data, _ := json.MarshalIndent(certs, "", "  ")
-	_ = os.WriteFile(c.certStorePath(), data, 0644)
+	data, err := json.MarshalIndent(certs, "", "  ")
+	if err != nil {
+		log.Printf("crypto: unable to marshal certificate store: %v", err)
+		return
+	}
+	if err := os.WriteFile(c.certStorePath(), data, 0644); err != nil {
+		log.Printf("crypto: unable to persist certificate store: %v", err)
+	}
 }
 
 // decodeData decodes a payload based on the specified format.

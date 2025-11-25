@@ -761,6 +761,44 @@ export namespace other {
 	        this.startedAt = source["startedAt"];
 	    }
 	}
+	export class PlantUMLRenderRequest {
+	    source: string;
+	    format: string;
+	    serverUrl: string;
+	    timeoutSeconds: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PlantUMLRenderRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.source = source["source"];
+	        this.format = source["format"];
+	        this.serverUrl = source["serverUrl"];
+	        this.timeoutSeconds = source["timeoutSeconds"];
+	    }
+	}
+	export class PlantUMLRenderResponse {
+	    mimeType: string;
+	    data: string;
+	    bytes: number;
+	    generated: string;
+	    serverUsed: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PlantUMLRenderResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mimeType = source["mimeType"];
+	        this.data = source["data"];
+	        this.bytes = source["bytes"];
+	        this.generated = source["generated"];
+	        this.serverUsed = source["serverUsed"];
+	    }
+	}
 	export class Socks5Config {
 	    listenIp: string;
 	    port: number;
