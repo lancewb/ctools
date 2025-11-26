@@ -3,6 +3,8 @@
 import {other} from '../models';
 import {context} from '../models';
 
+export function CheckJavaRuntime():Promise<string>;
+
 export function GMSSLServerStatus():Promise<other.GMSSLServerStatus>;
 
 export function RenderPlantUML(arg1:other.PlantUMLRenderRequest):Promise<other.PlantUMLRenderResponse>;

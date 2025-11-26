@@ -62,13 +62,6 @@
                   density="comfortable"
                 />
               </v-col>
-              <v-col cols="12" md="6">
-                <v-switch
-                  v-model="autoRender"
-                  label="自动预览"
-                  inset
-                />
-              </v-col>
             </v-row>
             <v-alert
               type="info"
@@ -76,8 +69,16 @@
               class="mt-2"
               density="compact"
             >
-              建议在内网运行 <code>docker run -d -p 18080:8080 plantuml/plantuml-server</code>，
-              然后指向 <code>http://127.0.0.1:18080/plantuml</code>。
+              <template v-if="usingBuiltin">
+                内置引擎会调用随应用分发的 PlantUML 核心，需确保本机已安装 Java 11+。
+                <span v-if="javaReady && javaVersion" class="d-block text-success mt-1">
+                  已检测到：{{ javaVersion }}
+                </span>
+              </template>
+              <template v-else>
+                建议在内网运行 <code>docker run -d -p 18080:8080 plantuml/plantuml-server</code>，
+                然后指向 <code>http://127.0.0.1:18080/plantuml</code>。
+              </template>
             </v-alert>
             <div class="text-body-2 font-weight-medium mb-1 mt-4">
               快速模板
@@ -259,7 +260,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { RenderPlantUML } from '../../../wailsjs/go/other/OtherService'
+import { RenderPlantUML, CheckJavaRuntime } from '../../../wailsjs/go/other/OtherService'
 
 const defaultDiagram = `@startuml
 title 系统时序示例
@@ -283,7 +284,6 @@ const outputFormat = ref('svg')
 const timeoutSeconds = ref(10)
 const serverPreset = ref('local')
 const customServer = ref('')
-const autoRender = ref(true)
 const rendering = ref(false)
 const renderError = ref('')
 const lastRenderTime = ref('')
@@ -303,6 +303,7 @@ const hasRenderableResult = computed(() => !!(renderedSvg.value || renderedImage
 const hasTextualResult = computed(() => !!(renderedSvg.value || renderedText.value))
 
 const serverOptions = [
+  { title: '内置引擎（需 Java）', value: 'builtin' },
   { title: '本地 Docker (127.0.0.1:18080)', value: 'local' },
   { title: '官方 SaaS (需外网)', value: 'official' },
   { title: '自定义', value: 'custom' }
@@ -366,14 +367,21 @@ const presetServers = {
   official: 'https://www.plantuml.com/plantuml'
 }
 
+const javaReady = ref(false)
+const javaVersion = ref('')
+const usingBuiltin = computed(() => serverPreset.value === 'builtin')
+
 const resolvedServer = computed(() => {
+  if (usingBuiltin.value) {
+    return ''
+  }
   if (serverPreset.value === 'custom') {
     return customServer.value?.trim() || ''
   }
   return presetServers[serverPreset.value] || presetServers.local
 })
 
-let debounceId
+let revertingPreset = false
 
 const applyTemplate = (code) => {
   plantumlSource.value = code
@@ -410,9 +418,6 @@ const loadLocal = () => {
       if (typeof parsed.customServer === 'string') {
         customServer.value = parsed.customServer
       }
-      if (typeof parsed.autoRender === 'boolean') {
-        autoRender.value = parsed.autoRender
-      }
       if (typeof parsed.timeoutSeconds === 'number' && !Number.isNaN(parsed.timeoutSeconds)) {
         timeoutSeconds.value = parsed.timeoutSeconds
       }
@@ -434,7 +439,6 @@ const persistSettings = () => {
       outputFormat: outputFormat.value,
       serverPreset: serverPreset.value,
       customServer: customServer.value,
-      autoRender: autoRender.value,
       timeoutSeconds: timeoutSeconds.value,
       previewScale: previewScale.value,
       previewExpanded: previewExpanded.value
@@ -452,14 +456,23 @@ const clampScale = (value) => {
   return Math.min(maxScale, Math.max(minScale, Number(value)))
 }
 
-const scheduleRender = () => {
-  clearTimeout(debounceId)
-  if (!autoRender.value) {
-    return
+const ensureJavaRuntime = async (fallbackPreset) => {
+  try {
+    const info = await CheckJavaRuntime()
+    javaReady.value = true
+    javaVersion.value = info
+  } catch (err) {
+    javaReady.value = false
+    javaVersion.value = ''
+    window.alert(
+      `${err?.message || '未检测到 Java 运行环境，请访问 https://adoptium.net/ 下载并安装 Java 11+ 后重试。'}`
+    )
+    if (typeof fallbackPreset === 'string') {
+      revertingPreset = true
+      serverPreset.value = fallbackPreset || 'local'
+      revertingPreset = false
+    }
   }
-  debounceId = setTimeout(() => {
-    renderDiagram()
-  }, 450)
 }
 
 const resetPreview = () => {
@@ -479,13 +492,22 @@ const renderDiagram = async () => {
   }
   rendering.value = true
   renderError.value = ''
-  const server = resolvedServer.value || presetServers.local
+  if (usingBuiltin.value && !javaReady.value) {
+    await ensureJavaRuntime(null)
+    if (!javaReady.value) {
+      renderError.value = '未检测到 Java 运行环境'
+      rendering.value = false
+      return
+    }
+  }
+  const server = usingBuiltin.value ? '' : (resolvedServer.value || presetServers.local)
   try {
     const result = await RenderPlantUML({
       source: plantumlSource.value,
       format: outputFormat.value,
       serverUrl: server,
-      timeoutSeconds: Number(timeoutSeconds.value) || 10
+      timeoutSeconds: Number(timeoutSeconds.value) || 10,
+      useBuiltin: usingBuiltin.value
     })
     lastResponse.value = result
     resetPreview()
@@ -574,31 +596,36 @@ const togglePreviewExpand = () => {
   previewExpanded.value = !previewExpanded.value
 }
 
-watch(plantumlSource, () => {
-  scheduleRender()
-})
-
-watch([outputFormat, () => resolvedServer.value], () => {
-  scheduleRender()
-})
-
-watch(autoRender, (enabled) => {
-  if (enabled) {
-    scheduleRender()
-  }
-})
-
-watch([outputFormat, serverPreset, customServer, autoRender, timeoutSeconds, previewScale, previewExpanded], () => {
+watch([outputFormat, serverPreset, customServer, timeoutSeconds, previewScale, previewExpanded], () => {
   persistSettings()
+})
+
+watch(serverPreset, (value, oldValue) => {
+  if (revertingPreset) {
+    return
+  }
+  if (value === 'builtin') {
+    ensureJavaRuntime(oldValue)
+  } else {
+    javaReady.value = false
+    javaVersion.value = ''
+  }
 })
 
 onMounted(() => {
   loadLocal()
-  renderDiagram()
+  if (serverPreset.value === 'builtin') {
+    ensureJavaRuntime('local').finally(() => {
+      if (!usingBuiltin.value || javaReady.value) {
+        renderDiagram()
+      }
+    })
+  } else {
+    renderDiagram()
+  }
 })
 
 onUnmounted(() => {
-  clearTimeout(debounceId)
   if (renderedImageUrl.value) {
     URL.revokeObjectURL(renderedImageUrl.value)
   }

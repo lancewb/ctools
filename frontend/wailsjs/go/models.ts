@@ -766,6 +766,7 @@ export namespace other {
 	    format: string;
 	    serverUrl: string;
 	    timeoutSeconds: number;
+	    useBuiltin: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new PlantUMLRenderRequest(source);
@@ -777,6 +778,7 @@ export namespace other {
 	        this.format = source["format"];
 	        this.serverUrl = source["serverUrl"];
 	        this.timeoutSeconds = source["timeoutSeconds"];
+	        this.useBuiltin = source["useBuiltin"];
 	    }
 	}
 	export class PlantUMLRenderResponse {

@@ -525,13 +525,17 @@ const triggerDownload = (blob, filename) => {
 
 const svgToPng = (svgString, scale = 2, background = '#ffffff') => {
   return new Promise((resolve, reject) => {
-    const svgBlob = new Blob([svgString], {
-      type: 'image/svg+xml;charset=utf-8'
-    })
-    const url = URL.createObjectURL(svgBlob)
+    const sanitized = ensureSvgNamespace(svgString)
     const image = new Image()
+    image.crossOrigin = 'anonymous'
+    const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(sanitized)}`
+    const timer = window.setTimeout(() => {
+      reject(new Error('PNG 导出超时'))
+    }, 8000)
+
     image.onload = () => {
-      const { width, height } = measureSvg(svgString, image)
+      window.clearTimeout(timer)
+      const { width, height } = measureSvg(sanitized, image)
       const canvas = document.createElement('canvas')
       canvas.width = Math.max(1, Math.round(width * scale))
       canvas.height = Math.max(1, Math.round(height * scale))
@@ -550,14 +554,23 @@ const svgToPng = (svgString, scale = 2, background = '#ffffff') => {
         'image/png',
         1
       )
-      URL.revokeObjectURL(url)
     }
     image.onerror = () => {
-      URL.revokeObjectURL(url)
+      window.clearTimeout(timer)
       reject(new Error('无法加载渲染结果'))
     }
-    image.src = url
+    image.src = dataUrl
   })
+}
+
+const ensureSvgNamespace = (svgString) => {
+  if (svgString.includes('xmlns=')) {
+    return svgString
+  }
+  return svgString.replace(
+    '<svg',
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"'
+  )
 }
 
 const measureSvg = (svgString, fallbackImage) => {
