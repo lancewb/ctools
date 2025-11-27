@@ -66,9 +66,9 @@
 
     <v-main class="bg-grey-lighten-5">
       <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
+        <v-fade-transition mode="out-in">
           <component :is="Component" />
-        </transition>
+        </v-fade-transition>
       </router-view>
     </v-main>
     <v-dialog v-model="infoDialog" max-width="320">
@@ -114,14 +114,6 @@ const currentTitle = computed(() => {
 </script>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
 :deep(.v-list-group__items .v-list-item) {
   /* 原始值为 64px (calc(16px + var(--indent-padding)))，实在太大了 */
   /* 改为 32px，刚好容纳图标并有一点点缩进 */
