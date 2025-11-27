@@ -12,7 +12,8 @@
     "@mdi/font": "^7.4.47",
     "mermaid": "^11.12.1",
     "vue": "^3.2.37",
-    "vue-router": "^4.6.3"
+    "vue-router": "^4.6.3",
+    "vuetify": "^3.10.11"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
