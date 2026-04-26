@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -23,19 +24,13 @@ type PingResult struct {
 // subnet: The subnet prefix (e.g., "192.168.1").
 // Returns a slice of PingResult sorted by host ID.
 func (a *NetworkService) PingSubnet(subnet string) []PingResult {
+	subnet = strings.TrimSuffix(strings.TrimSpace(subnet), ".")
+	if subnet == "" {
+		return []PingResult{}
+	}
 	var results []PingResult
 	var wg sync.WaitGroup
 	resultChan := make(chan PingResult, 254)
-
-	// On Windows, the Pinger must be executed with elevated privileges.
-	if runtime.GOOS == "windows" {
-		pinger, err := ping.NewPinger("127.0.0.1")
-		if err != nil {
-			fmt.Println("ERROR: ", err)
-			return nil
-		}
-		pinger.SetPrivileged(true)
-	}
 
 	for i := 1; i <= 254; i++ {
 		wg.Add(1)
@@ -47,7 +42,7 @@ func (a *NetworkService) PingSubnet(subnet string) []PingResult {
 				resultChan <- PingResult{ID: id, Latency: 5000}
 				return
 			}
-			pinger.SetPrivileged(true)
+			pinger.SetPrivileged(runtime.GOOS == "windows")
 			pinger.Count = 3
 			pinger.Timeout = 5 * time.Second
 
@@ -86,6 +81,10 @@ const historyFileName = "ping_history.json"
 
 // getConfigPath returns the path to the ping history file in the user's config directory.
 func (a *NetworkService) getConfigPath() string {
+	if override := strings.TrimSpace(os.Getenv("CTOOLS_CONFIG_DIR")); override != "" {
+		_ = os.MkdirAll(override, 0o755)
+		return filepath.Join(override, historyFileName)
+	}
 	configDir, err := os.UserConfigDir() // Windows: AppData/Roaming, Linux: .config
 	if err != nil {
 		return "."

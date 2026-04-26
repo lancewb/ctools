@@ -1,20 +1,62 @@
-name: Daily Wails Build & Release
+name: Build & Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, for example v1.2.3'
+        required: true
+        default: 'v0.0.0'
+      prerelease:
+        description: 'Mark the GitHub release as prerelease'
+        required: true
+        type: boolean
+        default: false
   schedule:
     - cron: '0 18 * * *'
-  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  prepare:
+    name: Prepare Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - name: Resolve Version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            raw="${{ inputs.version }}"
+            prerelease="${{ inputs.prerelease }}"
+          else
+            raw="v0.0.0-nightly-$(date +'%Y%m%d')-${GITHUB_RUN_NUMBER}"
+            prerelease="true"
+          fi
+          version="${raw#v}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
+
   build:
-    name: Build on ${{ matrix.os }}
+    name: Build ${{ matrix.name }}
+    needs: prepare
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [windows-latest]
+        include:
+          - name: linux-amd64
+            os: ubuntu-22.04
+            artifact: ctools-linux-amd64
+          - name: windows-amd64
+            os: windows-latest
+            artifact: ctools-windows-amd64
 
     steps:
       - name: Checkout
@@ -23,74 +65,85 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
-          check-latest: true
+          go-version-file: go.mod
+          cache: true
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Linux Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.0-dev
 
       - name: Install Wails
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
 
       - name: Install Frontend Dependencies
-        run: |
-          cd frontend
-          npm install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run Go Tests
+        run: go test ./...
 
       - name: Build Wails App
-        # 建议这里明确指定输出文件名，方便后续处理，例如 -o myapp.exe
-        run: wails build -clean
+        run: wails build -clean -tags webkit2_41
 
-      # Windows 上传
-      - name: Upload Windows Artifact
+      - name: Package Linux Artifact
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p release/ctools
+          cp build/bin/ctools release/ctools/
+          cp README.md release/ctools/
+          tar -czf "ctools-${{ needs.prepare.outputs.version }}-linux-amd64.tar.gz" -C release ctools
+
+      - name: Package Windows Artifact
         if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release/ctools | Out-Null
+          Copy-Item build/bin/ctools.exe release/ctools/
+          Copy-Item README.md release/ctools/
+          Compress-Archive -Path release/ctools -DestinationPath "ctools-${{ needs.prepare.outputs.version }}-windows-amd64.zip" -Force
+
+      - name: Upload Package
         uses: actions/upload-artifact@v4
         with:
-          name: windows-release
-          # 这里使用通配符很好，但要注意后续下载时的路径
-          path: build/bin/*.exe
-
-      # (Linux 和 macOS 的步骤省略，保持原样即可)
+          name: ${{ matrix.artifact }}
+          path: |
+            ctools-${{ needs.prepare.outputs.version }}-*.tar.gz
+            ctools-${{ needs.prepare.outputs.version }}-*.zip
+          if-no-files-found: error
 
   release:
-    name: Create Release
-    needs: build
+    name: Publish Release
+    needs:
+      - prepare
+      - build
     runs-on: ubuntu-latest
     steps:
-      - name: Get Current Date
-        id: date
-        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-
-      # 关键修改点 1: 下载 Artifacts
-      - name: Download Windows Artifact
+      - name: Download Packages
         uses: actions/download-artifact@v4
         with:
-          name: windows-release
-          path: ./release-assets  # 下载到一个临时目录，自动解压
+          pattern: ctools-*
+          path: release-assets
+          merge-multiple: true
 
-      # 如果有其他系统的 artifact，也可以继续下载到同一个目录
-      # - name: Download Linux Artifact
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: linux-release
-      #     path: ./release-assets
+      - name: List Packages
+        run: ls -la release-assets
 
-      # 关键修改点 2: 列出文件以便调试 (可选，但推荐)
-      - name: List Downloaded Files
-        run: ls -R ./release-assets
-
-      - name: Create Release and Upload Assets
-        uses: softprops/action-gh-release@v1
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: Daily Build ${{ steps.date.outputs.date }}
-          tag_name: v${{ steps.date.outputs.date }}
-          prerelease: true
-          # 关键修改点 3: 此时 release-assets 目录下就是裸的 .exe 文件
-          files: |
-            ./release-assets/*.exe
-            ./release-assets/*.zip
-            ./release-assets/*.tar.gz
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: CTools ${{ needs.prepare.outputs.version }}
+          prerelease: ${{ needs.prepare.outputs.prerelease }}
+          files: release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

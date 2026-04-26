@@ -75,7 +75,7 @@
       <v-card>
         <v-card-title class="text-subtitle-1 font-weight-bold">关于</v-card-title>
         <v-card-text>
-          <div class="text-body-2">Maintainer: wangdinglei</div>
+          <div class="text-body-2">Maintainer: X</div>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>

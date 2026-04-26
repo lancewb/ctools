@@ -3,11 +3,7 @@
 import {other} from '../models';
 import {context} from '../models';
 
-export function CheckJavaRuntime():Promise<string>;
-
 export function GMSSLServerStatus():Promise<other.GMSSLServerStatus>;
-
-export function RenderPlantUML(arg1:other.PlantUMLRenderRequest):Promise<other.PlantUMLRenderResponse>;
 
 export function RunGMSSLClientTest(arg1:other.GMSSLClientConfig):Promise<other.GMSSLClientResult>;
 

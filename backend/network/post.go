@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -51,6 +52,24 @@ type CollectionItem struct {
 // Returns a ResponseResult with the status, body, and timing information.
 func (n *NetworkService) SendHttpRequest(opt RequestOption) ResponseResult {
 	start := time.Now()
+	method := strings.ToUpper(strings.TrimSpace(opt.Method))
+	if method == "" {
+		method = http.MethodGet
+	}
+	requestURL := strings.TrimSpace(opt.URL)
+	if requestURL == "" {
+		return ResponseResult{Error: "URL is required"}
+	}
+	if !strings.HasPrefix(strings.ToLower(requestURL), "http://") && !strings.HasPrefix(strings.ToLower(requestURL), "https://") {
+		protocol := strings.ToLower(strings.TrimSpace(opt.Protocol))
+		if protocol == "" {
+			protocol = "http"
+		}
+		if protocol != "http" && protocol != "https" {
+			return ResponseResult{Error: "Unsupported protocol: " + opt.Protocol}
+		}
+		requestURL = protocol + "://" + requestURL
+	}
 
 	// 1. Construct Body
 	var bodyReader io.Reader
@@ -59,7 +78,7 @@ func (n *NetworkService) SendHttpRequest(opt RequestOption) ResponseResult {
 	}
 
 	// 2. Create Request
-	req, err := http.NewRequest(opt.Method, opt.URL, bodyReader)
+	req, err := http.NewRequest(method, requestURL, bodyReader)
 	if err != nil {
 		return ResponseResult{Error: "Failed to create request: " + err.Error()}
 	}
@@ -105,7 +124,7 @@ func (n *NetworkService) SendHttpRequest(opt RequestOption) ResponseResult {
 
 			return tlsConn, nil
 		}
-	} else if opt.URL[0:5] == "https" {
+	} else if strings.HasPrefix(strings.ToLower(requestURL), "https://") {
 		// Standard TLS Configuration
 		tlsConfig := &tls.Config{
 			InsecureSkipVerify: true,
@@ -127,6 +146,9 @@ func (n *NetworkService) SendHttpRequest(opt RequestOption) ResponseResult {
 	client := &http.Client{
 		Transport: transport,
 		Timeout:   time.Duration(opt.Timeout) * time.Second,
+	}
+	if opt.Timeout <= 0 {
+		client.Timeout = 30 * time.Second
 	}
 
 	// 5. Send Request
@@ -182,6 +204,7 @@ func (n *NetworkService) GetReqCollections() []CollectionItem {
 // item: The CollectionItem to save.
 // Returns the updated collection list.
 func (n *NetworkService) SaveReqCollection(item CollectionItem) []CollectionItem {
+	item.Name = strings.TrimSpace(item.Name)
 	list := n.GetReqCollections()
 
 	// Generate new ID if empty

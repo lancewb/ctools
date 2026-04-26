@@ -577,6 +577,42 @@ export namespace network {
 		    return a;
 		}
 	}
+	export class DNSLookupRequest {
+	    host: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DNSLookupRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.host = source["host"];
+	    }
+	}
+	export class DNSLookupResult {
+	    host: string;
+	    cname: string;
+	    addresses: string[];
+	    mx: string[];
+	    ns: string[];
+	    txt: string[];
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DNSLookupResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.host = source["host"];
+	        this.cname = source["cname"];
+	        this.addresses = source["addresses"];
+	        this.mx = source["mx"];
+	        this.ns = source["ns"];
+	        this.txt = source["txt"];
+	        this.error = source["error"];
+	    }
+	}
 	export class PingResult {
 	    id: number;
 	    latency: number;
@@ -590,6 +626,114 @@ export namespace network {
 	        this.id = source["id"];
 	        this.latency = source["latency"];
 	    }
+	}
+	export class PortScanRequest {
+	    host: string;
+	    ports: string;
+	    timeoutMillis: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PortScanRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.host = source["host"];
+	        this.ports = source["ports"];
+	        this.timeoutMillis = source["timeoutMillis"];
+	    }
+	}
+	export class PortScanResult {
+	    port: number;
+	    open: boolean;
+	    latencyMillis: number;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PortScanResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.port = source["port"];
+	        this.open = source["open"];
+	        this.latencyMillis = source["latencyMillis"];
+	        this.error = source["error"];
+	    }
+	}
+	export class PrometheusMetric {
+	    name: string;
+	    labels: Record<string, string>;
+	    value: number;
+	    raw: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PrometheusMetric(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.labels = source["labels"];
+	        this.value = source["value"];
+	        this.raw = source["raw"];
+	    }
+	}
+	export class PrometheusScrapeRequest {
+	    host: string;
+	    port: number;
+	    scheme: string;
+	    path: string;
+	    timeoutMillis: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PrometheusScrapeRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.host = source["host"];
+	        this.port = source["port"];
+	        this.scheme = source["scheme"];
+	        this.path = source["path"];
+	        this.timeoutMillis = source["timeoutMillis"];
+	    }
+	}
+	export class PrometheusScrapeResult {
+	    url: string;
+	    timestamp: string;
+	    metrics: PrometheusMetric[];
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PrometheusScrapeResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.url = source["url"];
+	        this.timestamp = source["timestamp"];
+	        this.metrics = this.convertValues(source["metrics"], PrometheusMetric);
+	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	
 	export class ResponseResult {
@@ -670,6 +814,46 @@ export namespace network {
 	        this.diskUsed = source["diskUsed"];
 	        this.diskPercent = source["diskPercent"];
 	        this.pciDevices = source["pciDevices"];
+	    }
+	}
+	export class TCPClientRequest {
+	    host: string;
+	    port: number;
+	    payload: string;
+	    payloadFormat: string;
+	    timeoutMillis: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new TCPClientRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.host = source["host"];
+	        this.port = source["port"];
+	        this.payload = source["payload"];
+	        this.payloadFormat = source["payloadFormat"];
+	        this.timeoutMillis = source["timeoutMillis"];
+	    }
+	}
+	export class TCPClientResult {
+	    connected: boolean;
+	    latencyMillis: number;
+	    response: string;
+	    responseBase64: string;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TCPClientResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.connected = source["connected"];
+	        this.latencyMillis = source["latencyMillis"];
+	        this.response = source["response"];
+	        this.responseBase64 = source["responseBase64"];
+	        this.error = source["error"];
 	    }
 	}
 
@@ -759,46 +943,6 @@ export namespace other {
 	        this.address = source["address"];
 	        this.error = source["error"];
 	        this.startedAt = source["startedAt"];
-	    }
-	}
-	export class PlantUMLRenderRequest {
-	    source: string;
-	    format: string;
-	    serverUrl: string;
-	    timeoutSeconds: number;
-	    useBuiltin: boolean;
-	
-	    static createFrom(source: any = {}) {
-	        return new PlantUMLRenderRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.source = source["source"];
-	        this.format = source["format"];
-	        this.serverUrl = source["serverUrl"];
-	        this.timeoutSeconds = source["timeoutSeconds"];
-	        this.useBuiltin = source["useBuiltin"];
-	    }
-	}
-	export class PlantUMLRenderResponse {
-	    mimeType: string;
-	    data: string;
-	    bytes: number;
-	    generated: string;
-	    serverUsed: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new PlantUMLRenderResponse(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.mimeType = source["mimeType"];
-	        this.data = source["data"];
-	        this.bytes = source["bytes"];
-	        this.generated = source["generated"];
-	        this.serverUsed = source["serverUsed"];
 	    }
 	}
 	export class Socks5Config {

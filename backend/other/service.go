@@ -59,7 +59,7 @@ type socks5Server struct {
 	listener   net.Listener
 	address    string
 	activeConn int64
-	lastError  string
+	lastError  atomic.Value
 	stopChan   chan struct{}
 }
 
@@ -68,17 +68,13 @@ type socks5Server struct {
 // cfg: The Socks5Config containing listen IP and port.
 // Returns a Socks5Status indicating the server state or an error.
 func (s *OtherService) StartSocks5Proxy(cfg Socks5Config) (Socks5Status, error) {
-	if cfg.Port == 0 {
-		return Socks5Status{}, errors.New("port is required")
+	if cfg.Port <= 0 || cfg.Port > 65535 {
+		return Socks5Status{}, errors.New("port must be between 1 and 65535")
 	}
-	if cfg.ListenIP == "" {
-		return Socks5Status{}, errors.New("listen IP is required")
+	if strings.TrimSpace(cfg.ListenIP) == "" {
+		cfg.ListenIP = "127.0.0.1"
 	}
-	if cfg.ListenIP == "127.0.0.1" || strings.ToLower(cfg.ListenIP) == "localhost" {
-		return Socks5Status{}, errors.New("listen IP cannot be 127.0.0.1")
-	}
-	addr := fmt.Sprintf("%s:%d", cfg.ListenIP, cfg.Port)
-	fmt.Println("start locking")
+	addr := net.JoinHostPort(cfg.ListenIP, fmt.Sprintf("%d", cfg.Port))
 	s.mu.Lock()
 	if s.socksServer != nil {
 		_ = s.socksServer.Close()
@@ -130,11 +126,12 @@ func (s *OtherService) currentSocksStatusLocked() Socks5Status {
 	if s.socksServer == nil {
 		return Socks5Status{}
 	}
+	lastError, _ := s.socksServer.lastError.Load().(string)
 	return Socks5Status{
 		Running:            true,
 		Address:            s.socksServer.address,
 		ActiveConnections:  atomic.LoadInt64(&s.socksServer.activeConn),
-		Error:              s.socksServer.lastError,
+		Error:              lastError,
 		LastControlMessage: time.Now().Format(time.RFC3339),
 	}
 }
@@ -146,7 +143,11 @@ func (s *socks5Server) serve() {
 			if ne, ok := err.(net.Error); ok && ne.Temporary() {
 				continue
 			}
-			s.lastError = err.Error()
+			select {
+			case <-s.stopChan:
+			default:
+				s.lastError.Store(err.Error())
+			}
 			return
 		}
 		go s.handleConnection(conn)
@@ -164,7 +165,13 @@ func (s *socks5Server) handleConnection(conn net.Conn) {
 	if _, err := io.ReadFull(conn, buf[:2]); err != nil {
 		return
 	}
+	if buf[0] != 0x05 {
+		return
+	}
 	nMethods := int(buf[1])
+	if nMethods == 0 || nMethods > len(buf) {
+		return
+	}
 	if _, err := io.ReadFull(conn, buf[:nMethods]); err != nil {
 		return
 	}
@@ -174,8 +181,11 @@ func (s *socks5Server) handleConnection(conn net.Conn) {
 	if _, err := io.ReadFull(conn, buf[:4]); err != nil {
 		return
 	}
+	if buf[0] != 0x05 {
+		return
+	}
 	if buf[1] != 0x01 {
-		_ = conn.Close()
+		_, _ = conn.Write([]byte{0x05, 0x07, 0x00, 0x01, 0, 0, 0, 0, 0, 0})
 		return
 	}
 	var addr string
@@ -189,12 +199,15 @@ func (s *socks5Server) handleConnection(conn net.Conn) {
 			return
 		}
 		port := binary.BigEndian.Uint16(buf[:2])
-		addr = fmt.Sprintf("%s:%d", ip, port)
+		addr = net.JoinHostPort(ip, fmt.Sprintf("%d", port))
 	case 0x03: // Domain
 		if _, err := io.ReadFull(conn, buf[:1]); err != nil {
 			return
 		}
 		domainLen := int(buf[0])
+		if domainLen == 0 || domainLen > len(buf) {
+			return
+		}
 		if _, err := io.ReadFull(conn, buf[:domainLen]); err != nil {
 			return
 		}
@@ -203,11 +216,22 @@ func (s *socks5Server) handleConnection(conn net.Conn) {
 			return
 		}
 		port := binary.BigEndian.Uint16(buf[:2])
-		addr = fmt.Sprintf("%s:%d", domain, port)
+		addr = net.JoinHostPort(domain, fmt.Sprintf("%d", port))
+	case 0x04: // IPv6
+		if _, err := io.ReadFull(conn, buf[:16]); err != nil {
+			return
+		}
+		ip := net.IP(buf[:16]).String()
+		if _, err := io.ReadFull(conn, buf[:2]); err != nil {
+			return
+		}
+		port := binary.BigEndian.Uint16(buf[:2])
+		addr = net.JoinHostPort(ip, fmt.Sprintf("%d", port))
 	default:
+		_, _ = conn.Write([]byte{0x05, 0x08, 0x00, 0x01, 0, 0, 0, 0, 0, 0})
 		return
 	}
-	target, err := net.Dial("tcp", addr)
+	target, err := net.DialTimeout("tcp", addr, 10*time.Second)
 	if err != nil {
 		_, _ = conn.Write([]byte{0x05, 0x05, 0x00, 0x01, 0, 0, 0, 0, 0, 0})
 		return

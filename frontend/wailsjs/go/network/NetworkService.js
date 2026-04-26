@@ -34,6 +34,10 @@ export function GetServerList() {
   return window['go']['network']['NetworkService']['GetServerList']();
 }
 
+export function LookupDNS(arg1) {
+  return window['go']['network']['NetworkService']['LookupDNS'](arg1);
+}
+
 export function PingSubnet(arg1) {
   return window['go']['network']['NetworkService']['PingSubnet'](arg1);
 }
@@ -50,8 +54,20 @@ export function SaveServer(arg1) {
   return window['go']['network']['NetworkService']['SaveServer'](arg1);
 }
 
+export function ScanPorts(arg1) {
+  return window['go']['network']['NetworkService']['ScanPorts'](arg1);
+}
+
+export function ScrapePrometheus(arg1) {
+  return window['go']['network']['NetworkService']['ScrapePrometheus'](arg1);
+}
+
 export function SendHttpRequest(arg1) {
   return window['go']['network']['NetworkService']['SendHttpRequest'](arg1);
+}
+
+export function SendTCP(arg1) {
+  return window['go']['network']['NetworkService']['SendTCP'](arg1);
 }
 
 export function SetContext(arg1) {

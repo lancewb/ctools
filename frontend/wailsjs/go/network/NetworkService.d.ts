@@ -19,6 +19,8 @@ export function GetReqCollections():Promise<Array<network.CollectionItem>>;
 
 export function GetServerList():Promise<Array<network.ServerConfig>>;
 
+export function LookupDNS(arg1:network.DNSLookupRequest):Promise<network.DNSLookupResult>;
+
 export function PingSubnet(arg1:string):Promise<Array<network.PingResult>>;
 
 export function RemovePingHistory(arg1:string):Promise<Array<string>>;
@@ -27,6 +29,12 @@ export function SaveReqCollection(arg1:network.CollectionItem):Promise<Array<net
 
 export function SaveServer(arg1:network.ServerConfig):Promise<Array<network.ServerConfig>>;
 
+export function ScanPorts(arg1:network.PortScanRequest):Promise<Array<network.PortScanResult>>;
+
+export function ScrapePrometheus(arg1:network.PrometheusScrapeRequest):Promise<network.PrometheusScrapeResult>;
+
 export function SendHttpRequest(arg1:network.RequestOption):Promise<network.ResponseResult>;
+
+export function SendTCP(arg1:network.TCPClientRequest):Promise<network.TCPClientResult>;
 
 export function SetContext(arg1:context.Context):Promise<void>;

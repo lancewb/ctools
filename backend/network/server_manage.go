@@ -65,6 +65,16 @@ func (n *NetworkService) GetServerList() []ServerConfig {
 // server: The ServerConfig to save.
 // Returns the updated list of servers.
 func (n *NetworkService) SaveServer(server ServerConfig) []ServerConfig {
+	server.Name = strings.TrimSpace(server.Name)
+	server.Host = strings.TrimSpace(server.Host)
+	server.Port = strings.TrimSpace(server.Port)
+	server.User = strings.TrimSpace(server.User)
+	if server.Port == "" {
+		server.Port = "22"
+	}
+	if server.AuthType == "" {
+		server.AuthType = "password"
+	}
 	list := n.GetServerList()
 
 	// Generate ID
@@ -73,11 +83,16 @@ func (n *NetworkService) SaveServer(server ServerConfig) []ServerConfig {
 		list = append(list, server)
 	} else {
 		// Update
+		found := false
 		for i, v := range list {
 			if v.ID == server.ID {
 				list[i] = server
+				found = true
 				break
 			}
+		}
+		if !found {
+			list = append(list, server)
 		}
 	}
 	n.saveServerFile(list)
@@ -114,6 +129,16 @@ func (n *NetworkService) saveServerFile(list []ServerConfig) {
 // Returns a ServerStatus struct with system metrics.
 func (n *NetworkService) CheckServerStatus(config ServerConfig) ServerStatus {
 	status := ServerStatus{ID: config.ID, IsOnline: false}
+	config.Host = strings.TrimSpace(config.Host)
+	config.Port = strings.TrimSpace(config.Port)
+	config.User = strings.TrimSpace(config.User)
+	if config.Port == "" {
+		config.Port = "22"
+	}
+	if config.Host == "" || config.User == "" {
+		status.Error = "host and user are required"
+		return status
+	}
 
 	// 1. Configure SSH Client
 	authMethods := []ssh.AuthMethod{}
